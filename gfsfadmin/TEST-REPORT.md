@@ -64,6 +64,22 @@
 | `3600qiyi.php` | ⏱ 超时 | 需有效 cookie 重试空转 |
 | `3600qiyi-原始版本.php` | ⏱ 超时 | 同上 |
 
+## Cookie 生成 / 扫码登录 · 真实测试（v0.0.3）
+
+> 通过后台 API（`api.php?action=cookie_gen` / `qr_login` / `qr_poll`）真实调用，2026-10-05
+
+| 接口 | 平台 | 结果 | 说明 |
+|---|---|---|---|
+| `qr_login` | 哔哩哔哩 | ✅ 成功 | 官方 passport 接口返回真实 `qrcode_key` 与扫码 URL |
+| `qr_login` | 芒果TV | ✅ 成功 | `nuc.api.mgtv.com` 返回真实 `rcode` 与扫码 URL |
+| `qr_poll` | 哔哩哔哩 | ✅ 成功 | 轮询返回真实扫码状态（86101 已扫码待确认），状态机正确 |
+| `cookie_gen` | 哔哩哔哩 | ✅ 识别失效 | `blgetck.php` 正确输出并检测到 `cookie-Statue:Cookieout` 失效标记，提示扫码登录 |
+| `cookie_gen` | 芒果TV | ✅ 识别失效 | `mggetck.php` 正确检测本地 cookie 过期（2023-04 会话），未误保存 |
+| `run`（b.php） | 哔哩哔哩 | ✅ 成功 | 真实解析返回 MP4 直链 `upos-szbyjkm8g1.bilivideo.com`，播放区可提取 |
+| `run`（mg.php） | 芒果TV | ❌ 预期失败 | 本地 cookie 过期，ticket 无效返回"解析失败"，符合预期 |
+
+**结论**：播放区链接提取（`extractVideoUrl`）已通过 6 组格式测试（JSON 直链 / m3u8 / 嵌套 url / 失败输出 / 纯文本直链 / 空输出）；扫码登录链路（二维码生成 → 轮询 → 保存）真实可用；`cookie_gen` 能正确区分有效与失效 Cookie，不会误写入过期凭据。生成真实有效 Cookie 需在后台页面扫码完成（本机无手机扫码时以轮询到真实状态为验证标准）。
+
 ## 结论
 
 1. **算法代码可运行**：22 个脚本均无 PHP 语法/致命错误，可通过后台运行控制台真实执行。

@@ -21,7 +21,7 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
   <header class="topbar">
     <div class="topbar-inner">
       <img class="topbar-logo" src="https://cdn.jsdelivr.net/gh/ssmhdssmhd/MXLOGO@main/web/web-logo.svg" alt="GFSF">
-      <div class="topbar-title">GFSF 算法管理后台 <span class="badge">v0.0.1</span></div>
+      <div class="topbar-title">GFSF 算法管理后台 <span class="badge">v0.0.3</span></div>
       <div class="topbar-right">
         <span>管理员: <?php echo $user; ?> · 登录于 <?php echo $loginAt; ?></span>
         <a class="btn btn-ghost" href="logout.php">退出</a>
@@ -49,6 +49,41 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
         <label class="chk"><input id="run-auto" type="checkbox"> 自动刷新</label>
       </div>
       <pre id="run-output" class="output">等待运行…</pre>
+      <div id="play-zone" class="play-zone hidden">
+        <div class="row play-row">
+          <button id="play-btn" class="btn btn-primary">▶ 内嵌播放</button>
+          <button id="play-new" class="btn">新窗口打开</button>
+          <button id="play-copy" class="btn">复制链接</button>
+        </div>
+        <video id="play-video" controls playsinline></video>
+        <div id="play-url" class="muted"></div>
+      </div>
+    </section>
+
+    <!-- Cookie 生成 -->
+    <section class="panel">
+      <h2>Cookie 生成 <small>真实调用生成脚本并保存</small></h2>
+      <div class="row">
+        <select id="gen-platform" class="select"></select>
+        <button id="gen-btn" class="btn btn-primary">生成并保存 Cookie</button>
+      </div>
+      <div id="gen-info" class="muted"></div>
+      <pre id="gen-output" class="output">尚未生成…</pre>
+    </section>
+
+    <!-- 扫码登录 -->
+    <section class="panel">
+      <h2>扫码登录 <small>生成真实 Cookie（B站 / 芒果TV）</small></h2>
+      <div class="row">
+        <select id="qr-platform" class="select"></select>
+        <button id="qr-get" class="btn btn-primary">获取二维码</button>
+        <button id="qr-stop" class="btn" disabled>停止轮询</button>
+      </div>
+      <div class="qr-row">
+        <div id="qr-box" class="qr-box"><span class="muted">点击「获取二维码」后用手机扫码</span></div>
+        <div id="qr-status" class="muted"></div>
+      </div>
+      <div id="qr-ck" class="muted"></div>
     </section>
 
     <!-- Cookie 管理 -->
@@ -65,6 +100,7 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
     </section>
   </main>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const api = async (url, opts = {}) => {
@@ -98,7 +134,7 @@ async function loadPlatforms() {
       '<div class="card-row muted">' + (p.ckInfo && p.ckInfo.head ? '预览: ' + escapeHtml(p.ckInfo.head.slice(0, 40)) : '') + '</div>';
     box.appendChild(el);
   });
-  await Promise.all([loadRunPlatforms(), loadCkPlatforms()]);
+  await Promise.all([loadRunPlatforms(), loadCkPlatforms(), loadGenPlatforms(), loadQrPlatforms()]);
 }
 
 /* ---------- 运行控制台 ---------- */
@@ -131,6 +167,7 @@ async function doRun() {
   const btn = $('run-btn');
   btn.disabled = true;
   $('run-output').textContent = '解析中…';
+  hidePlay();
   const fd = new FormData();
   fd.append('platform', $('run-platform').value);
   fd.append('script', $('run-script').value);
@@ -140,7 +177,169 @@ async function doRun() {
   const t = new Date().toLocaleTimeString();
   $('run-output').textContent = '▶ [' + t + '] ' + (j.script || '') + '\n   耗时: ' + (j.cost_s || '-') + ' s\n\n' + (j.output || '(无输出)');
   btn.disabled = false;
+  showPlay(j.output || '');
 }
+
+/* ---------- 播放区 ---------- */
+let lastVideoUrl = null;
+function hidePlay() {
+  $('play-zone').classList.add('hidden');
+  $('play-video').pause();
+  $('play-video').removeAttribute('src');
+  lastVideoUrl = null;
+}
+function extractVideoUrl(text) {
+  if (!text) return null;
+  // 优先尝试 JSON 解析（输出多为 JSON 文本）
+  try {
+    const s = text.indexOf('{');
+    if (s >= 0) {
+      const obj = JSON.parse(text.slice(s));
+      const find = (o) => {
+        if (!o || typeof o !== 'object') return null;
+        if (typeof o.url === 'string') return o.url;
+        for (const k in o) {
+          if (k === 'code' || k === 'msg' || k === 'title' || k === 'script') continue;
+          const v = find(o[k]);
+          if (v) return v;
+        }
+        return null;
+      };
+      const u = find(obj);
+      if (u && /^https?:\/\//i.test(u)) return u;
+    }
+  } catch (e) {}
+  // 正则兜底：直链
+  const m = text.match(/https?:\/\/[^\s"'<>\\]+?\.(?:m3u8|mp4|flv)[^\s"'<>\\]*/i);
+  if (m) return m[0];
+  const m2 = text.match(/"url"\s*:\s*"([^"]+)"/);
+  return m2 && /^https?:\/\//i.test(m2[1]) ? m2[1] : null;
+}
+function showPlay(output) {
+  const u = extractVideoUrl(output);
+  if (!u) return;
+  lastVideoUrl = u;
+  $('play-url').textContent = u;
+  $('play-zone').classList.remove('hidden');
+  if (/\.mp4(\?|$)/i.test(u)) {
+    $('play-video').src = u;
+    $('play-video').play().catch(() => {});
+  } else {
+    $('play-video').removeAttribute('src');
+  }
+}
+$('play-btn').onclick = function () {
+  if (!lastVideoUrl) return;
+  if (/\.m3u8/i.test(lastVideoUrl)) {
+    alert('m3u8 格式浏览器无法直接播放，请用「新窗口打开」或外部播放器');
+    return;
+  }
+  $('play-video').src = lastVideoUrl;
+  $('play-video').play().catch(() => alert('播放失败：可能存在防盗链，请用「新窗口打开」'));
+};
+$('play-new').onclick = function () {
+  if (lastVideoUrl) window.open(lastVideoUrl, '_blank');
+};
+$('play-copy').onclick = function () {
+  if (!lastVideoUrl) return;
+  (navigator.clipboard ? navigator.clipboard.writeText(lastVideoUrl) : Promise.reject())
+    .then(() => $('play-copy').textContent = '已复制')
+    .catch(() => { $('play-copy').textContent = '复制失败'; })
+    .finally(() => setTimeout(() => $('play-copy').textContent = '复制链接', 1500));
+};
+
+/* ---------- Cookie 生成 ---------- */
+async function loadGenPlatforms() {
+  const j = await api('api.php?action=platforms');
+  if (!j) return;
+  const sel = $('gen-platform');
+  sel.innerHTML = '';
+  (j.data || []).forEach(p => {
+    if (p.cookie) {
+      const o = document.createElement('option');
+      o.value = p.key; o.textContent = p.name;
+      sel.appendChild(o);
+    }
+  });
+}
+async function genCookie() {
+  const btn = $('gen-btn');
+  btn.disabled = true;
+  $('gen-info').textContent = '正在真实调用生成脚本…';
+  $('gen-output').textContent = '运行中…';
+  const fd = new FormData();
+  fd.append('platform', $('gen-platform').value);
+  const j = await api('api.php?action=cookie_gen', { method: 'POST', body: fd });
+  btn.disabled = false;
+  if (!j) return;
+  $('gen-output').textContent = (j.output || '(无输出)') + '\n\n▶ 脚本: ' + (j.script || '-') + ' · 耗时: ' + (j.cost_s || '-') + ' s';
+  $('gen-info').textContent = (j.msg || '') + (j.data ? ' · 已保存 ' + j.data.size + ' B @ ' + j.data.mtime : '');
+  await loadPlatforms();
+}
+
+/* ---------- 扫码登录 ---------- */
+let qrKey = null, qrTimer = null, qrPlatform = null;
+async function loadQrPlatforms() {
+  const j = await api('api.php?action=platforms');
+  if (!j) return;
+  const sel = $('qr-platform');
+  sel.innerHTML = '';
+  ['bl', 'mg'].forEach(k => {
+    const p = (j.data || []).find(x => x.key === k);
+    if (p) {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = p.name;
+      sel.appendChild(o);
+    }
+  });
+}
+async function qrGet() {
+  qrStop();
+  qrPlatform = $('qr-platform').value;
+  $('qr-status').textContent = '正在生成二维码…';
+  const fd = new FormData();
+  fd.append('platform', qrPlatform);
+  const j = await api('api.php?action=qr_login', { method: 'POST', body: fd });
+  if (!j || j.code !== 200) {
+    $('qr-status').textContent = j ? (j.msg || '生成失败') : '请求失败';
+    return;
+  }
+  qrKey = j.data.key;
+  $('qr-box').innerHTML = '';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode($('qr-box'), { text: j.data.url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    $('qr-box').innerHTML = '<span class="muted">二维码库未加载，请手动打开：</span><a href="' + j.data.url + '" target="_blank">扫码链接</a>';
+  }
+  $('qr-status').textContent = '二维码已生成，请用手机 App 扫码（60 秒内有效）';
+  $('qr-stop').disabled = false;
+  qrTimer = setInterval(qrPoll, 5000);
+  qrPoll();
+}
+async function qrPoll() {
+  if (!qrKey) return;
+  const fd = new FormData();
+  fd.append('platform', qrPlatform);
+  fd.append('key', qrKey);
+  const j = await api('api.php?action=qr_poll', { method: 'POST', body: fd });
+  if (!j) return;
+  $('qr-status').textContent = j.msg || '';
+  if (j.data && j.data.ck) {
+    $('qr-ck').textContent = '✓ 已获取 Cookie（' + (j.data.size || 0) + ' B）：' + j.data.ck.slice(0, 80) + '…';
+    qrStop();
+    await loadPlatforms();
+    $('qr-status').textContent = '登录成功，Cookie 已保存到平台文件';
+  } else if (j.data && j.data.status === 86038) {
+    qrStop();
+    $('qr-status').textContent = '二维码已过期，请点击「获取二维码」重新生成';
+  }
+}
+function qrStop() {
+  if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
+  $('qr-stop').disabled = true;
+}
+$('qr-get').onclick = qrGet;
+$('qr-stop').onclick = qrStop;
 
 /* ---------- Cookie 管理 ---------- */
 async function loadCkPlatforms() {
@@ -191,6 +390,7 @@ $('run-platform').onchange = loadScripts;
 $('ck-load').onclick = ckLoad;
 $('ck-save').onclick = ckSave;
 $('ck-clear').onclick = ckClear;
+$('gen-btn').onclick = genCookie;
 $('run-auto').onchange = function () {
   if (this.checked) {
     doRun();
