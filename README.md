@@ -1,41 +1,62 @@
 # 🦋 GFSF · 算法项目
 
-> GFSF 算法学习与实现集合：数据结构与算法、刷题记录、常用算法模板与工具。
+> GFSF 算法学习与实现集合：各平台视频解析算法脚本 + 后台管理 + Cookie 全程自动化。
 
 - 仓库地址：[github.com/ssmhdssmhd/GFSF](https://github.com/ssmhdssmhd/GFSF)
-- 当前版本：`v0.0.4`（2026-10-05）
+- 当前版本：`v0.0.5`（2026-10-05）
 - Logo 来源：[MXLOGO · 射手沫蝴蝶 Logo 资产库](https://github.com/ssmhdssmhd/MXLOGO)
 
 ![GFSF Logo](https://cdn.jsdelivr.net/gh/ssmhdssmhd/MXLOGO@main/web/web-logo.svg)
 
 ---
 
-## 📁 目录结构
+## 📁 目录结构（任意 PHP 环境直接部署）
 
 ```
-GFSF/
-├── dsck.php                # Cookie 自动检查 / 生成 / 同步 调度脚本（可作计划任务）
-├── cookies/                # GitHub Actions 自动维护的 cookie 文件（可从 GitHub raw 读取）
-├── gfsfadmin/              # 后台管理系统（登录、运行控制台、Cookie 管理、扫码登录）
-├── uploads_sf/算法/         # 各平台解析 / cookie 校验 / cookie 获取脚本
-├── .github/workflows/      # GitHub Actions（cookie-auto.yml：云端自动检查并生成 cookie）
-├── README.md               # 项目说明
-└── VERSION                 # 版本信息
+GFSF/                        ← 部署根目录（站点根 / 宝塔站点 / 虚拟主机均可）
+├── index.php                # 后台主页（登录后使用：运行控制台 + Cookie 管理 + 扫码登录）
+├── login.php / logout.php   # 登录 / 退出
+├── api.php                  # 后台 API（platforms / scripts / run / cookie_* / qr_login）
+├── config.php               # 全局配置（管理员账号、脚本根目录自动探测、平台配置）
+├── runner.php               # 脚本执行器（CLI 子进程，自动切换脚本目录）
+├── dsck.php                 # Cookie 自动检查 / 生成 / 同步 调度脚本（可作计划任务）
+├── assets/                  # 样式资源
+├── uploads_sf/算法/          # 各平台解析 / cookie 校验 / cookie 获取脚本
+├── cookies/                 # GitHub Actions 自动维护的 cookie 文件（可从 GitHub raw 读取）
+├── .github/workflows/       # GitHub Actions（cookie-auto.yml：云端自动检查并生成 cookie）
+├── TEST-REPORT.md           # 算法脚本真实测试报告
+├── README.md                # 项目说明
+└── VERSION                  # 版本信息
 ```
 
-> 具体内容随版本迭代逐步补充。
+> **任意 PHP 环境部署**：只需 PHP（需 curl / mbstring 扩展），把仓库根目录作为站点根即可，**无需修改任何代码**（脚本根目录自动探测：环境变量 `GFSF_SCRIPTS_ROOT` > 同级 `uploads_sf/算法` > 上级 `uploads_sf/算法`）。
 
 ---
 
 ## 🚀 快速开始
 
-1. 克隆仓库
-
 ```bash
-git clone https://github.com/ssmhdssmhd/GFSF.git
+# 1. 安装 PHP（需 curl / mbstring 扩展）
+apt-get install -y php-cli php-curl php-mbstring
+
+# 2. 启动（开发环境）
+php -S 0.0.0.0:8092 -t /workspace
+
+# 3. 浏览器打开 http://127.0.0.1:8092/login.php
+#    用户名 admin，密码见 config.php（首次登录后建议修改）
 ```
 
-2. 选择对应的算法目录进入即可查看或运行示例代码。
+生产环境：将仓库根目录指向 Nginx/Apache/宝塔站点根即可。
+
+---
+
+## 🖥 后台管理（index.php）
+
+- **平台概览**：各平台脚本数量、Cookie 文件状态与预览
+- **运行控制台**：选择平台/脚本，输入视频地址真实调用解析算法；成功后显示播放区（内嵌播放 / 新窗口打开 / 复制链接），支持自动刷新
+- **Cookie 生成**：真实调用生成脚本（blgetck.php / mggetck.php）自动生成并保存 Cookie，自动识别失效 Cookie
+- **扫码登录**：B 站 / 芒果TV 官方接口生成二维码，手机扫码登录后自动轮询并保存真实 Cookie
+- **Cookie 管理**：读取 / 编辑 / 保存 / 清空各平台 `ck.txt`（腾讯为 `qqck.txt`）
 
 ---
 
@@ -71,9 +92,10 @@ php dsck.php --action pull --platform bl
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v0.0.5 | 2026-10-05 | 整理目录结构：后台文件移至仓库根目录，任意 PHP 环境直接部署（脚本根目录自动探测，无需改代码）；移除 gfsfadmin 子目录 |
 | v0.0.4 | 2026-10-05 | 新增 Cookie 全程自动化：dsck.php 调度脚本（检查/自动生成/拉取 GitHub cookie/导出）、GitHub Actions 定时检查并提交 cookies/ 目录、可选项访问令牌 |
 | v0.0.3 | 2026-10-05 | 后台 v0.0.3：运行控制台播放区 + Cookie 生成与扫码登录（B站/芒果TV），接口真实测试通过 |
-| v0.0.2 | 2026-10-05 | 新增后台管理（gfsfadmin）：登录、平台概览、脚本运行控制台、Cookie 管理；算法脚本真实测试（见 TEST-REPORT.md） |
+| v0.0.2 | 2026-10-05 | 新增后台管理：登录、平台概览、脚本运行控制台、Cookie 管理；算法脚本真实测试（见 TEST-REPORT.md） |
 | v0.0.1 | 2026-10-05 | 仓库初始化：README、版本信息、基础文件（.gitignore / VERSION） |
 
 ---

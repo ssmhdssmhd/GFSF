@@ -13,8 +13,22 @@ define('SESSION_NAME', 'GFSFADMIN');
 session_name(SESSION_NAME);
 
 /* ================= 算法脚本根目录 ================= */
+// 自动探测：任意 PHP 环境部署时无需修改代码。
+// 优先级：环境变量 GFSF_SCRIPTS_ROOT > 同级 uploads_sf/算法 > 上级 uploads_sf/算法
+if (getenv('GFSF_SCRIPTS_ROOT') !== false && getenv('GFSF_SCRIPTS_ROOT') !== '') {
+    define('SCRIPTS_ROOT', getenv('GFSF_SCRIPTS_ROOT'));
+} else {
+    $candidates = array(
+        __DIR__ . '/uploads_sf/算法',
+        dirname(__DIR__) . '/uploads_sf/算法',
+    );
+    $found = null;
+    foreach ($candidates as $c) {
+        if (is_dir($c)) { $found = $c; break; }
+    }
+    define('SCRIPTS_ROOT', $found !== null ? $found : __DIR__ . '/uploads_sf/算法');
+}
 // 脚本通过 CLI 子进程执行，cwd 会切换到脚本所在目录，保证 ck.txt 等相对路径正确加载
-define('SCRIPTS_ROOT', '/workspace/uploads_sf/算法');
 
 /* ================= 平台配置 =================
  * dir     : 平台目录（相对 SCRIPTS_ROOT）
