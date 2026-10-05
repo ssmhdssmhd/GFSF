@@ -3,7 +3,7 @@
 > GFSF 算法学习与实现集合：各平台视频解析算法脚本 + 后台管理 + Cookie 全程自动化。
 
 - 仓库地址：[github.com/ssmhdssmhd/GFSF](https://github.com/ssmhdssmhd/GFSF)
-- 当前版本：`v0.0.5`（2026-10-05）
+- 当前版本：`v0.0.6`（2026-10-05）
 - Logo 来源：[MXLOGO · 射手沫蝴蝶 Logo 资产库](https://github.com/ssmhdssmhd/MXLOGO)
 
 ![GFSF Logo](https://cdn.jsdelivr.net/gh/ssmhdssmhd/MXLOGO@main/web/web-logo.svg)
@@ -23,6 +23,7 @@ GFSF/                        ← 部署根目录（站点根 / 宝塔站点 / �
 ├── assets/                  # 样式资源
 ├── uploads_sf/算法/          # 各平台解析 / cookie 校验 / cookie 获取脚本
 ├── cookies/                 # GitHub Actions 自动维护的 cookie 文件（可从 GitHub raw 读取）
+├── backups/                 # 在线更新前的本地备份（不入库）
 ├── .github/workflows/       # GitHub Actions（cookie-auto.yml：云端自动检查并生成 cookie）
 ├── TEST-REPORT.md           # 算法脚本真实测试报告
 ├── README.md                # 项目说明
@@ -57,6 +58,8 @@ php -S 0.0.0.0:8092 -t /workspace
 - **Cookie 生成**：真实调用生成脚本（blgetck.php / mggetck.php）自动生成并保存 Cookie，自动识别失效 Cookie
 - **扫码登录**：B 站 / 芒果TV 官方接口生成二维码，手机扫码登录后自动轮询并保存真实 Cookie
 - **Cookie 管理**：读取 / 编辑 / 保存 / 清空各平台 `ck.txt`（腾讯为 `qqck.txt`）
+- **云端获取**：一键从 GitHub 仓库 `cookies/` 拉取最新 Cookie 到本地并自动校验
+- **在线更新**：检查 GitHub 最新版本，一键拉取最新代码覆盖本地（自动备份，保留 cookies/、backups/ 与本地 config.php）
 
 ---
 
@@ -92,6 +95,7 @@ php dsck.php --action pull --platform bl
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v0.0.6 | 2026-10-05 | 后台新增云端获取（从 GitHub cookies/ 拉取 Cookie 并校验）与在线更新（检查远程版本、一键拉取最新代码覆盖本地，自动备份并保留 cookies/ 与本地 config.php） |
 | v0.0.5 | 2026-10-05 | 整理目录结构：后台文件移至仓库根目录，任意 PHP 环境直接部署（脚本根目录自动探测，无需改代码）；移除 gfsfadmin 子目录 |
 | v0.0.4 | 2026-10-05 | 新增 Cookie 全程自动化：dsck.php 调度脚本（检查/自动生成/拉取 GitHub cookie/导出）、GitHub Actions 定时检查并提交 cookies/ 目录、可选项访问令牌 |
 | v0.0.3 | 2026-10-05 | 后台 v0.0.3：运行控制台播放区 + Cookie 生成与扫码登录（B站/芒果TV），接口真实测试通过 |

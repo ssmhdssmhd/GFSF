@@ -98,6 +98,29 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
       <div id="ck-info" class="muted"></div>
       <textarea id="ck-content" class="textarea" rows="8" placeholder="Cookie 内容…"></textarea>
     </section>
+
+    <!-- 云端获取 Cookie -->
+    <section class="panel">
+      <h2>云端获取 <small>从 GitHub 仓库 cookies/ 拉取最新 Cookie</small></h2>
+      <div class="row">
+        <select id="pull-platform" class="select"></select>
+        <button id="pull-btn" class="btn btn-primary">从 GitHub 获取</button>
+      </div>
+      <div id="pull-info" class="muted"></div>
+      <pre id="pull-output" class="output">尚未获取…</pre>
+    </section>
+
+    <!-- 在线更新 -->
+    <section class="panel">
+      <h2>在线更新 <small>从 GitHub 拉取最新代码</small></h2>
+      <div class="row">
+        <span id="up-local" class="muted">本地版本：-</span>
+        <span id="up-remote" class="muted">远程版本：-</span>
+        <button id="up-check" class="btn">检查更新</button>
+        <button id="up-run" class="btn btn-primary" disabled>立即更新</button>
+      </div>
+      <pre id="up-output" class="output">点击「检查更新」查看远程版本与更新内容…</pre>
+    </section>
   </main>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -134,7 +157,7 @@ async function loadPlatforms() {
       '<div class="card-row muted">' + (p.ckInfo && p.ckInfo.head ? '预览: ' + escapeHtml(p.ckInfo.head.slice(0, 40)) : '') + '</div>';
     box.appendChild(el);
   });
-  await Promise.all([loadRunPlatforms(), loadCkPlatforms(), loadGenPlatforms(), loadQrPlatforms()]);
+  await Promise.all([loadRunPlatforms(), loadCkPlatforms(), loadGenPlatforms(), loadQrPlatforms(), loadPullPlatforms()]);
 }
 
 /* ---------- 运行控制台 ---------- */
@@ -401,6 +424,64 @@ $('run-auto').onchange = function () {
 };
 
 loadPlatforms();
+
+/* ---------- 云端获取 Cookie（从 GitHub 拉取） ---------- */
+async function loadPullPlatforms() {
+  const j = await api('api.php?action=platforms');
+  if (!j) return;
+  const sel = $('pull-platform');
+  sel.innerHTML = '';
+  (j.data || []).forEach(p => {
+    if (!p.cookie) return;
+    const o = document.createElement('option');
+    o.value = p.key; o.textContent = p.name;
+    sel.appendChild(o);
+  });
+}
+$('pull-btn').onclick = async function () {
+  const fd = new FormData();
+  fd.append('platform', $('pull-platform').value);
+  $('pull-info').textContent = '正在从 GitHub 获取…';
+  $('pull-btn').disabled = true;
+  const j = await api('api.php?action=cookie_pull', { method: 'POST', body: fd });
+  $('pull-btn').disabled = false;
+  if (!j) return;
+  $('pull-info').textContent = j.msg || '';
+  const d = j.data || {};
+  let out = d.url ? '来源: ' + d.url + '\n' : '';
+  out += '大小: ' + (d.size || 0) + ' B · 时间: ' + (d.mtime || '-') + '\n';
+  if (d.check) {
+    out += '校验: ' + (d.check.ok ? '✓ Cookie 有效' : '✗ Cookie 失效') + '\n' + (d.check.output || '');
+  }
+  $('pull-output').textContent = out || '(无输出)';
+  await loadPlatforms();
+};
+
+/* ---------- 在线更新（从 GitHub 拉取最新代码） ---------- */
+async function upCheck() {
+  $('up-output').textContent = '正在检查远程版本…';
+  const j = await api('api.php?action=update_check');
+  if (!j) return;
+  $('up-local').textContent = '本地版本：' + (j.data.local || '-');
+  $('up-remote').textContent = '远程版本：' + (j.data.remote || '-');
+  $('up-run').disabled = !(j.data.has_update);
+  $('up-output').textContent =
+    (j.data.has_update ? '✓ 检测到新版本，可点击「立即更新」\n\n' : '当前已是最新版本\n\n')
+    + '—— 远程 README（前部）——\n' + (j.data.remote_readme || '');
+}
+$('up-check').onclick = upCheck;
+$('up-run').onclick = async function () {
+  if (!confirm('确认从 GitHub 拉取最新代码覆盖本地？\n（保留 cookies/、backups/ 目录与本地 config.php，旧版本会先备份）')) return;
+  $('up-run').disabled = true;
+  $('up-output').textContent = '正在下载并更新，请稍候…（约 10~30 秒）';
+  const j = await api('api.php?action=update_run', { method: 'POST' });
+  if (!j) return;
+  $('up-output').textContent = j.msg + (j.data && j.data.backup ? '\n备份目录: ' + j.data.backup : '');
+  if (j.code === 200) {
+    $('up-output').textContent += '\n\n更新完成，请刷新页面查看新版本（如代码有变化页面可能需手动刷新）。';
+  }
+  $('up-run').disabled = false;
+};
 </script>
 </body>
 </html>

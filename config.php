@@ -30,6 +30,10 @@ if (getenv('GFSF_SCRIPTS_ROOT') !== false && getenv('GFSF_SCRIPTS_ROOT') !== '')
 }
 // 脚本通过 CLI 子进程执行，cwd 会切换到脚本所在目录，保证 ck.txt 等相对路径正确加载
 
+/* ================= GitHub 仓库（云端 Cookie / 在线更新） ================= */
+define('GH_REPO',   getenv('GFSF_GH_REPO')   ? getenv('GFSF_GH_REPO')   : 'ssmhdssmhd/GFSF');
+define('GH_BRANCH', getenv('GFSF_GH_BRANCH') ? getenv('GFSF_GH_BRANCH') : 'main');
+
 /* ================= 平台配置 =================
  * dir     : 平台目录（相对 SCRIPTS_ROOT）
  * cookie  : cookie 保存文件名（相对平台目录），null 表示无独立 cookie 文件

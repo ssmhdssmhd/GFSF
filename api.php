@@ -291,6 +291,109 @@ switch ($action) {
             $out = array('code' => 400, 'msg' => '该平台暂不支持扫码登录');
         }
         break;
+
+    /* ---------- 云端获取 Cookie（从 GitHub cookies/ 拉取） ---------- */
+    case 'cookie_pull':
+        $platform = isset($_POST['platform']) ? $_POST['platform'] : '';
+        if (!isset($PLATFORMS[$platform]) || !$PLATFORMS[$platform]['cookie']) {
+            $out = array('code' => 400, 'msg' => '该平台无 cookie 文件');
+            break;
+        }
+        $url = 'https://raw.githubusercontent.com/' . GH_REPO . '/' . GH_BRANCH . '/cookies/' . $platform . '.txt';
+        $res = trim((string)adminCurl($url));
+        if ($res === '' || strlen($res) < 10) {
+            $out = array('code' => 500, 'msg' => 'GitHub 未找到该平台 cookie（cookies/' . $platform . '.txt 为空或不存在）', 'data' => array('url' => $url));
+            break;
+        }
+        $dirReal = realpath(SCRIPTS_ROOT . '/' . $PLATFORMS[$platform]['dir']);
+        $ckPath  = $dirReal . '/' . $PLATFORMS[$platform]['cookie'];
+        if (file_put_contents($ckPath, $res) === false) {
+            $out = array('code' => 500, 'msg' => '写入本地失败');
+            break;
+        }
+        // 调用平台校验脚本确认有效性（blcheckck.php / mgcheckck.php）
+        $check = array('ok' => false, 'output' => '');
+        $CHECK_SCRIPTS = array('bl' => 'blcheckck.php', 'mg' => 'mgcheckck.php');
+        if (isset($CHECK_SCRIPTS[$platform]) && is_file($dirReal . '/' . $CHECK_SCRIPTS[$platform])) {
+            $runner = __DIR__ . '/runner.php';
+            $cmd = 'cd ' . escapeshellarg($dirReal)
+                 . ' && echo "" | timeout 20 php ' . escapeshellarg($runner) . ' '
+                 . escapeshellarg($dirReal) . ' ' . escapeshellarg($CHECK_SCRIPTS[$platform]) . ' 2>&1';
+            $ret = trim((string)shell_exec($cmd));
+            $jj  = json_decode($ret, true);
+            $check = array(
+                'ok'     => is_array($jj) && isset($jj['code']) && (int)$jj['code'] === 200,
+                'output' => mb_substr($ret, 0, 300),
+            );
+        }
+        $out = array('code' => 200, 'msg' => '已从 GitHub 获取并保存到本地', 'data' => array(
+            'size'  => strlen($res),
+            'mtime' => date('Y-m-d H:i:s', filemtime($ckPath)),
+            'check' => $check,
+            'url'   => $url,
+        ));
+        break;
+
+    /* ---------- 在线更新：检查 GitHub 最新版本 ---------- */
+    case 'update_check':
+        $remoteVer = trim((string)adminCurl('https://raw.githubusercontent.com/' . GH_REPO . '/' . GH_BRANCH . '/VERSION'));
+        $localVer  = (is_file(__DIR__ . '/VERSION')) ? trim((string)file_get_contents(__DIR__ . '/VERSION')) : '';
+        $remoteReadme = (string)adminCurl('https://raw.githubusercontent.com/' . GH_REPO . '/' . GH_BRANCH . '/README.md');
+        $out = array('code' => 200, 'msg' => 'ok', 'data' => array(
+            'local'        => $localVer,
+            'remote'       => $remoteVer,
+            'has_update'   => ($remoteVer !== '' && $remoteVer !== $localVer),
+            'remote_readme'=> mb_substr($remoteReadme, 0, 3500),
+        ));
+        break;
+
+    /* ---------- 在线更新：从 GitHub 拉取最新代码并覆盖 ---------- */
+    case 'update_run':
+        $zipUrl = 'https://codeload.github.com/' . GH_REPO . '/zip/refs/heads/' . GH_BRANCH;
+        $tmp    = sys_get_temp_dir() . '/gfsf_update_' . time();
+        @mkdir($tmp, 0777, true);
+        $zipFile = $tmp . '/update.zip';
+
+        // 下载 zip
+        $ch = curl_init($zipUrl);
+        $fp = fopen($zipFile, 'w');
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        fclose($fp);
+        if ($httpCode !== 200 || filesize($zipFile) < 1000) {
+            @unlink($zipFile);
+            $out = array('code' => 500, 'msg' => '下载代码失败（HTTP ' . $httpCode . '）');
+            break;
+        }
+
+        // 解压（优先 PHP ZipArchive，其次系统 unzip）
+        $extracted = unzipArchive($zipFile, $tmp);
+        if ($extracted === null || !is_dir($extracted)) {
+            @unlink($zipFile);
+            $out = array('code' => 500, 'msg' => '解压失败：请安装 PHP zip 扩展或系统 unzip 命令');
+            break;
+        }
+
+        // 备份本地（排除 cookies/.uploads/.git/backups）
+        $bkDir = __DIR__ . '/backups/update_' . date('Ymd_His');
+        @mkdir($bkDir, 0777, true);
+        recursiveCopy(__DIR__, $bkDir, array('cookies', '.uploads', '.git', 'backups'));
+
+        // 覆盖本地（保留：cookies/.uploads/.git/backups/config.php）
+        recursiveCopy($extracted, __DIR__, array('cookies', '.uploads', '.git', 'backups', 'config.php'));
+
+        // 清理临时文件
+        deleteDir($tmp);
+        $out = array('code' => 200, 'msg' => '更新完成：已从 GitHub 拉取最新代码覆盖本地（保留 cookies/、backups/ 与本地 config.php）', 'data' => array(
+            'backup' => 'backups/' . basename($bkDir),
+        ));
+        break;
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -320,4 +423,53 @@ function adminCurlRaw($url) {
     $hs  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     curl_close($ch);
     return array(substr($raw, 0, $hs), substr($raw, $hs));
+}
+
+/** 解压 zip 到目录，返回 zip 内第一层目录（仓库根），失败返回 null */
+function unzipArchive($zipFile, $dest) {
+    if (class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        if ($zip->open($zipFile) === true) {
+            $zip->extractTo($dest);
+            $zip->close();
+            foreach (scandir($dest) as $e) {
+                if ($e !== '.' && $e !== '..' && is_dir($dest . '/' . $e)) return $dest . '/' . $e;
+            }
+            return $dest;
+        }
+    }
+    $cmd = 'unzip -q ' . escapeshellarg($zipFile) . ' -d ' . escapeshellarg($dest) . ' 2>&1';
+    shell_exec($cmd);
+    foreach (scandir($dest) as $e) {
+        if ($e !== '.' && $e !== '..' && is_dir($dest . '/' . $e)) return $dest . '/' . $e;
+    }
+    return null;
+}
+
+/** 递归复制目录；$exclude 为排除的名字（任意层级，基于 basename） */
+function recursiveCopy($src, $dst, $exclude = array()) {
+    $exclude = array_flip($exclude);
+    foreach (scandir($src) as $e) {
+        if ($e === '.' || $e === '..' || isset($exclude[$e])) continue;
+        $s = $src . '/' . $e;
+        $d = $dst . '/' . $e;
+        if (is_dir($s)) {
+            @mkdir($d, 0777, true);
+            recursiveCopy($s, $d, $exclude);
+        } else {
+            if (!copy($s, $d)) return false;
+        }
+    }
+    return true;
+}
+
+/** 递归删除目录 */
+function deleteDir($dir) {
+    if (!is_dir($dir)) return;
+    foreach (scandir($dir) as $e) {
+        if ($e === '.' || $e === '..') continue;
+        $p = $dir . '/' . $e;
+        if (is_dir($p)) deleteDir($p); else @unlink($p);
+    }
+    @rmdir($dir);
 }
