@@ -1,0 +1,60 @@
+name: Auto Cookie
+
+# 全程自动化：云端检查各平台 cookie，失效自动重新获取，并把最新 cookie 提交回仓库 cookies/ 目录
+# 本地 / 服务器可通过 https://raw.githubusercontent.com/ssmhdssmhd/GFSF/main/cookies/{平台}.txt 或 dsck.php?action=pull 读取
+
+on:
+  schedule:
+    # 每 6 小时自动运行一次（可自行调整 cron）
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # 手动触发：仓库 Actions 页面点击 Run workflow
+    inputs:
+      platform:
+        description: '平台（all / bl / mg / tx / iqy / youku）'
+        required: false
+        default: 'all'
+
+jobs:
+  cookie:
+    name: 检查并自动生成 Cookie
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: curl, mbstring
+
+      - name: 检查并自动生成 Cookie
+        run: php dsck.php --action auto --platform "${{ github.event.inputs.platform || 'all' }}"
+
+      - name: 导出 Cookie 到仓库目录
+        run: php dsck.php --action export
+
+      - name: 提交更新的 Cookie（有变更才提交）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cookies/
+          if git diff --cached --quiet; then
+            echo "无 cookie 变更，无需提交"
+          else
+            git commit -m "chore(cookie): 自动刷新 Cookie 20261005"
+            git push origin main
+            echo "已提交更新的 Cookie"
+          fi
+
+      - name: 输出检查结果摘要
+        run: |
+          echo "## Cookie 自动检查 / 生成结果" >> $GITHUB_STEP_SUMMARY
+          php dsck.php --action check --platform "${{ github.event.inputs.platform || 'all' }}" \
+            | php -r '$j=json_decode(stream_get_contents(STDIN),true); foreach($j["results"] as $k=>$r){ echo "- **".$k."** ".$r["name"].": `".($r["status"]??"?")."` — ".($r["msg"]??"").PHP_EOL; }' >> $GITHUB_STEP_SUMMARY
