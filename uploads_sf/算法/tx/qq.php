@@ -1,0 +1,670 @@
+<?php
+error_reporting(0);
+header('Content-type: text/json;charset=utf-8');
+$leixing = "wx";//qq就填qq微信就填wx
+$ipsq = true;//true 开启ip授权 false 关闭 开启后，只有授权过的ip才能调用此接口
+$ips = '127.0.0.1|61.136.164.154|58.39.110.157';// 授权ip列表，什么隔开都行
+$dytip['code'] = 200;
+$dytip['url'] = 'http://api.zxyan.cn/';//防盗视频地址
+$dytip['msg'] = '火苗API：api.huomiao.cc';
+    if ($ipsq == true) {
+        $ip = trim($_SERVER['REMOTE_ADDR']);
+        if (strstr($ips, $ip) == false) {
+            exit(json_encode($dytip,456));
+        }
+    }
+
+
+$url = $_SERVER["REQUEST_URI"];    
+if($url == ""){
+$player['code']=404;
+$player['msg']='请输入地址';
+echo json_encode($player, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+exit;
+}
+if(strstr($url,"m.v.qq")==true){
+$searchString = "url=";  // 定义要查询的字符为url=
+$url = strstr($url,$searchString);
+$length = strlen($searchString);
+$url = substr($url, $length);
+$url = str_replace('m.v.qq.com/x/m/play?cid=','v.qq.com/x/cover/',$url);
+$url = str_replace('m.v.qq.com/cover/s/','v.qq.com/x/cover/',$url);
+$url = str_replace('&vid=','/',$url).'.html';
+$url = preg_replace('/&mobile(.*)/','.html',$url);
+$url = str_replace('.html.html','.html',$url);
+$url = str_replace('/.html','.html',$url);
+}
+
+
+
+//     if (!file_exists("vipurl.php") || filemtime("vipurl.php")+3600 < time()){   
+//     $vipurl = "https://site.ip138.com/tfogc.com/domain.htm";
+   
+//     $vipurl = mycurl($vipurl);
+//      preg_match_all('/\<a href=\"\/(.*?)\/\" target=\"_blank\"\>/',$vipurl,$vurl);
+//     $vipurl = $vurl[1];
+//     $vipurl = $vipurl[11] .PHP_EOL .$vipurl[12].PHP_EOL .$vipurl[13].PHP_EOL .$vipurl[14].PHP_EOL .$vipurl[15].PHP_EOL .$vipurl[16].PHP_EOL .$vipurl[17].PHP_EOL .$vipurl[18].PHP_EOL .$vipurl[19].PHP_EOL .$vipurl[20].PHP_EOL .$vipurl[21].PHP_EOL .$vipurl[22].PHP_EOL .$vipurl[23].PHP_EOL .$vipurl[24].PHP_EOL .$vipurl[25].PHP_EOL .$vipurl[26].PHP_EOL .$vipurl[27].PHP_EOL .$vipurl[28].PHP_EOL .$vipurl[29].PHP_EOL .$vipurl[30];
+//     file_put_contents("vipurl.php",$vipurl);
+//     print_r ($vipurl);
+// }
+   
+   
+   
+if (strstr($url, "v.qq.com") == true) {
+            if (preg_match('/v.qq.com\/x\/cover\/(.*)\/(.*?)\.html/',$url,$r)) {
+                if (count($r) == 3) {
+                    $cid = $r[1];
+                    $vid = $r[2];
+                } else {
+                    $cid = $r[1];
+                }
+            }
+            if (empty($cid)==true || empty($vid)==true) {
+                $lhr = ['Referer: never','User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'];
+                $content = mycurl($url,$lhr);
+                if (empty($cid)) {
+                    preg_match('/"cover_id":"(.*?)",/',$content,$cidA);
+                    $cid = $cidA[1];
+                }
+                if (empty($vid)) {
+                    preg_match('/"currentVid":"(.*?)",/',$content,$vidA); 
+                    $vid = $vidA[1];
+                }
+                if (empty($vid)) {
+                    preg_match('/video_ids":\["(.*?)"/',$content,$vidA);
+                    $vid = $vidA[1];
+                }
+                if (empty($vid)) {
+                    preg_match('#cid=(\\w+)&vid=(\\w+)["|&]#', $content, $id);
+                    $cid = $id[1];
+                    $vid = $id[2];
+                }
+            }
+            
+        } 
+        
+
+       // $guid = createGUID();
+       // $guid = ccGUID();
+        $time = time();
+        $flowid = md5($time);
+        $rfid = md5($flowid) . '_' . $time;
+        
+            
+            
+            $dtype = 2;
+            $hevclv = 28;
+          
+        if ($leixing == 'wx') {
+        
+            $lt = 'wx';
+            $appid = 'wxa75efa648b60994b';
+            
+            
+        } else {
+            $lt = 'qq';
+            $appid = '101483052';
+        }
+
+
+        
+                  $header = [
+            'Host: vv.video.qq.com',
+            'Origin: https://v.qq.com',
+            'Referer: https://v.qq.com/',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+        ];
+
+        
+        $res = mycurl("http://vv.video.qq.com/getinfo?vids={$vid}&platform=101001&charge=0&otype=Json&defn=shd",$header);
+        $xml = simplexml_load_string($res);//把XML转JSON,把 XML 字符串载入对象中
+        $json = json_encode($xml);
+        $res = json_decode($json,true);
+        
+        if ($res['vl']['vi']['fvkey'] == "" || $res['vl']['vi']['fn'] == "") {
+             $cookie = mycurl('https://ck.huomiao.cc/ck/tx/ck.php');
+              // $cookie = "video_platform=2; pgv_pvid=4097478170; RK=cCtlPzgZfm; ptcz=dc807b652cdfc39a318fa9b255aaab96c7f6c555ee545cde76279dd236cd7cc1; uid=54597837; video_guid=e0335ab06557dfce; main_login=wx; access_token=67_sv8BTINvxpeSf1SJrZtYWE4V8hF6ZW7xaaKzlHq7QyIbStpHvX0UrZQ4n2Y9JzNAN4YNiTjzEd9-8eFga5HHrxGpjDhpR2awcmO30Xto9sM; appid=wx5ed58254bc0d6b7f; openid=ox8XOvkfrxt2T1mRTJo9hb0t7CXU; vuserid=3185707749; refresh_token=67_t3HirsEWkibWjLnsxjXxJqP_HX7uJQb4Kozn9gJnKB3zVuITw0hZp-a63RjcXEYIafb_fyB5r_o9IWod-PZ9Z1ScGLPc-CQDJaTkXeJidiE; _video_qq_version=1.1; _video_qq_access_token=67_sv8BTINvxpeSf1SJrZtYWE4V8hF6ZW7xaaKzlHq7QyIbStpHvX0UrZQ4n2Y9JzNAN4YNiTjzEd9-8eFga5HHrxGpjDhpR2awcmO30Xto9sM; _video_qq_appid=wx5ed58254bc0d6b7f; _video_qq_openid=ox8XOvkfrxt2T1mRTJo9hb0t7CXU; _video_qq_vuserid=3185707749; _video_qq_refresh_token=67_t3HirsEWkibWjLnsxjXxJqP_HX7uJQb4Kozn9gJnKB3zVuITw0hZp-a63RjcXEYIafb_fyB5r_o9IWod-PZ9Z1ScGLPc-CQDJaTkXeJidiE; _video_qq_main_login=wx; vusession=5TjGpKkzbZXPIjE3CVBqqQ.N; _video_qq_vusession=5TjGpKkzbZXPIjE3CVBqqQ.N; pgv_info=ssid=s6003055805; vversion_name=8.2.95; video_omgid=e0335ab06557dfce; login_time_init=1682238269; next_refresh_time=3974; _video_qq_login_time_init=1682238269; _video_qq_next_refresh_time=3974; login_time_last=2023-4-23 16:24:28";//这里需要会员ck
+               $guid = getckval($cookie,'video_guid');
+
+               $access_token = getckval($cookie,'access_token');
+                $vusession = getckval($cookie,'vusession');
+                $openid = getckval($cookie,'openid');
+                $vuserid = getckval($cookie,'vuserid');
+                
+          // $appid = '101483052';
+           
+          //  $appid = '272713140';
+            
+            $ckey = ckey8::parse($url,$vid,$guid,'10201');
+
+  $api = vipurl_mian($cid,$vid,$ckey,$guid,$flowid,$dtype,$time,$access_token,$appid,$vusession,$openid,$vuserid,$lt,$hevclv,$rfid,$cookie,$url);
+  
+  echo json_encode($api, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+exit;	
+
+
+
+
+
+   //  $cookie = mycurl('https://sf.huomiao.cc/tx/upck-78978.php');
+        }else{
+        
+               $cookie = "";
+               $guid = createGUID();
+
+               $access_token = getckval($cookie,'access_token');
+                $vusession = getckval($cookie,'vusession');
+                $openid = getckval($cookie,'openid');
+                $vuserid = getckval($cookie,'vuserid');
+                
+           //$appid = '101483052';
+          //  $appid = '272713140';
+            
+            $ckey = ckey8::parse($url,$vid,$guid,'10201');
+            
+  $api = vip_mian($cid,$vid,$ckey,$guid,$flowid,$dtype,$time,$access_token,$appid,$vusession,$openid,$vuserid,$lt,$hevclv,$rfid,$cookie,$url);
+ echo json_encode($api, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+exit;	
+
+        
+        }
+        
+        
+
+
+
+
+       
+     
+
+        
+
+
+
+
+
+         
+           
+
+
+
+
+//print_r (ckvqq($cid,$vid,$ckey,$guid,$flowid,$dtype,$time,$access_token,$appid,$vusession,$openid,$vuserid,$lt,$hevclv,$rfid,$cookie));
+
+
+
+ 
+          
+          
+      function vip_mian($cid,$vid,$ckey,$guid,$flowid,$dtype,$time,$access_token,$appid,$vusession,$openid,$vuserid,$lt,$hevclv,$rfid,$cookie,$url) {
+
+
+        $arr = [
+            'buid' => 'vinfoad',
+            'vinfoparam' => "charge=0&otype=ojson&defnpayver=3&spau=1&spaudio=0&spwm=1&sphls=2&host=v.qq.com&refer=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&ehost=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&sphttps=1&encryptVer=8.1&cKey=$ckey&clip=4&guid=$guid&flowid=$flowid&platform=10201&sdtfrom=v1010&appVer=3.5.57&unid=&auth_from=&auth_ext=&vid=$vid&defn=shd&fhdswitch=0&dtype=$dtype&spsrt=2&tm=$time&lang_code=0&logintoken=%7B%22access_token%22%3A%22$access_token%22%2C%22appid%22%3A%22$appid%22%2C%22vusession%22%3A%22$vusession%22%2C%22openid%22%3A%22$openid%22%2C%22vuserid%22%3A%22$vuserid%22%2C%22video_guid%22%3A%22$guid%22%2C%22main_login%22%3A%22$lt%22%7D&spvvpay=1&spadseg=3&spav1=15&hevclv=$hevclv&spsfrhdr=0&spvideo=0&spm3u8tag=67&spmasterm3u8=3&drm=40",
+            'sspAdParam' => "{\"ad_scene\":1,\"pre_ad_params\":{\"ad_scene\":1,\"user_type\":1,\"video\":{\"base\":{\"vid\":\"$vid\",\"cid\":\"$cid\"},\"is_live\":false,\"type_id\":1,\"referer\":\"https://v.qq.com/channel/movie\",\"url\":\"https://v.qq.com/x/cover/$cid/$vid.html\",\"flow_id\":\"$flowid\",\"refresh_id\":\"$rfid\"},\"platform\":{\"guid\":\"$guid\",\"channel_id\":0,\"site\":\"web\",\"platform\":\"in\",\"from\":0,\"device\":\"pc\",\"play_platform\":10201,\"pv_tag\":\"|channel\"},\"player\":{\"version\":\"1.13.8\",\"plugin\":\"1.15.16\",\"switch\":1,\"play_type\":\"0\",\"img_type\":\"webp\"},\"token\":{\"type\":1,\"vuid\":$vuserid,\"vuser_session\":\"$vusession\",\"app_id\":\"$appid\",\"open_id\":\"$openid\",\"access_token\":\"$access_token\"}}}",
+            'adparam' => "pf=in&pf_ex=pc&pu=1&pt=0&platform=10201&from=0&flowid=$flowid&guid=$guid&coverid=$cid&vid=$vid&chid=0&tpid=1&refer=https%3A%2F%2Fv.qq.com%2Fchannel%2Fmovie&url=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&lt=$lt&opid=$openid&atkn=$access_token&appid=$appid&uid=$vuserid&tkn=$vusession&rfid=$rfid&v=1.13.8&vptag=%7Cchannel&ad_type=LD%7CKB%7CPVL&live=0&appversion=3.2.25&ty=web&adaptor=1&dtype=1&resp_type=json&s_img=webp",
+        ];
+        
+        $api = 'https://vd6.l.qq.com/proxyhttp';
+        $header = [
+            'Cookie: '.$cookie,
+            'Host: vd6.l.qq.com',
+            'Origin: https://v.qq.com',
+            'Referer: https://v.qq.com/',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+        ];
+        $res = mycurl($api,$header,1,json_encode($arr));
+        $json = json_decode($res,true);
+        $data = json_decode($json['vinfo'], true);
+        $ip = $data["ip"];
+        $vi = $data["vl"]["vi"][0];
+        
+        $ui = $vi["ul"]["ui"];
+        $title = $vi["ti"];//视频标题
+        
+        $vfkey = $vi['fvkey'];
+        
+     //$ipp=@file_get_contents("http://sf.huomiao.cc/tx/ip.txt");
+    $ipp =rand_ip();
+  //  $ipp= rand_ip();
+
+        $urlhz = "&sdtfrom=v1010&type=mp4&platform=10201&br=117&fmt=10218&ver=0&sp=1&guid=".$guid."&cip=".$ipp."&cpro=29&cisp=1&stdfrom=1100&proto=https://api.huomiao.cc";
+        
+ 
+         
+        $vipurli = file_get_contents("vipurl.php");
+        $fss = explode("\n", $vipurli);
+        $randomnum = rand(0, count($fss)-1);
+        $vipurl = $fss[$randomnum];
+        $vipurl = "https://".$vipurl.":49156/om.tc.qq.com/video.dispatch.tc.qq.com/";
+         $mkey = mkey();
+
+        $playurl = $vipurl.$data['vl']['vi'][0]['fn']."?mkey=".$mkey."&name=HUOMIAO&vkey=".$vfkey.$urlhz;
+        
+        
+       if ($cookie == "") {
+        $text = "这是免ck得解析不出来,你不填ck怎么解";     
+ 
+        }else{
+        
+       $text = "ck失效啦";     
+   
+        }
+          
+         
+      if ($data['vl']['vi'][0]['fvkey'] == "" || $data['vl']['vi'][0]['fn'] == "") {
+ 
+/*
+        if ($svip == "ck失效了") {
+         mycurl("http://localhost:8003/qqemail.php?user=210923203@qq.com&hb=神话科技&mb=5");
+        }
+*/
+         
+            $info['code'] = 404;
+            $info['msg'] = $text;
+            echo json_encode($info, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+die;
+        }else{
+        
+            $info['code'] = 200;
+            $info["title"] = $title;
+            $info['url'] = $playurl;
+            $info['vipurl'] = $url;
+            $info['daili'] = $ip;
+            echo json_encode($info, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+exit;
+        
+        }
+          
+          }
+
+
+
+      function vipurl_mian($cid,$vid,$ckey,$guid,$flowid,$dtype,$time,$access_token,$appid,$vusession,$openid,$vuserid,$lt,$hevclv,$rfid,$cookie,$url) {
+
+
+        $arr = [
+            'buid' => 'vinfoad',
+            'vinfoparam' => "charge=0&otype=ojson&defnpayver=3&spau=1&spaudio=0&spwm=1&sphls=2&host=v.qq.com&refer=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&ehost=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&sphttps=1&encryptVer=8.1&cKey=$ckey&clip=4&guid=$guid&flowid=$flowid&platform=10201&sdtfrom=v1010&appVer=3.5.57&unid=&auth_from=&auth_ext=&vid=$vid&defn=shd&fhdswitch=0&dtype=$dtype&spsrt=2&tm=$time&lang_code=0&logintoken=%7B%22access_token%22%3A%22$access_token%22%2C%22appid%22%3A%22$appid%22%2C%22vusession%22%3A%22$vusession%22%2C%22openid%22%3A%22$openid%22%2C%22vuserid%22%3A%22$vuserid%22%2C%22video_guid%22%3A%22$guid%22%2C%22main_login%22%3A%22$lt%22%7D&spvvpay=1&spadseg=3&spav1=15&hevclv=$hevclv&spsfrhdr=0&spvideo=0&spm3u8tag=67&spmasterm3u8=3&drm=40",
+            'sspAdParam' => "{\"ad_scene\":1,\"pre_ad_params\":{\"ad_scene\":1,\"user_type\":1,\"video\":{\"base\":{\"vid\":\"$vid\",\"cid\":\"$cid\"},\"is_live\":false,\"type_id\":1,\"referer\":\"https://v.qq.com/channel/movie\",\"url\":\"https://v.qq.com/x/cover/$cid/$vid.html\",\"flow_id\":\"$flowid\",\"refresh_id\":\"$rfid\"},\"platform\":{\"guid\":\"$guid\",\"channel_id\":0,\"site\":\"web\",\"platform\":\"in\",\"from\":0,\"device\":\"pc\",\"play_platform\":10201,\"pv_tag\":\"|channel\"},\"player\":{\"version\":\"1.13.8\",\"plugin\":\"1.15.16\",\"switch\":1,\"play_type\":\"0\",\"img_type\":\"webp\"},\"token\":{\"type\":1,\"vuid\":$vuserid,\"vuser_session\":\"$vusession\",\"app_id\":\"$appid\",\"open_id\":\"$openid\",\"access_token\":\"$access_token\"}}}",
+            'adparam' => "pf=in&pf_ex=pc&pu=1&pt=0&platform=10201&from=0&flowid=$flowid&guid=$guid&coverid=$cid&vid=$vid&chid=0&tpid=1&refer=https%3A%2F%2Fv.qq.com%2Fchannel%2Fmovie&url=https%3A%2F%2Fv.qq.com%2Fx%2Fcover%2F$cid%2F$vid.html&lt=$lt&opid=$openid&atkn=$access_token&appid=$appid&uid=$vuserid&tkn=$vusession&rfid=$rfid&v=1.13.8&vptag=%7Cchannel&ad_type=LD%7CKB%7CPVL&live=0&appversion=3.2.25&ty=web&adaptor=1&dtype=1&resp_type=json&s_img=webp",
+        ];
+        
+        $api = 'https://vd6.l.qq.com/proxyhttp';
+        $header = [
+            'Cookie: '.$cookie,
+            'Host: vd6.l.qq.com',
+            'Origin: https://v.qq.com',
+            'Referer: https://v.qq.com/',
+            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+        ];
+        $res = mycurl($api,$header,1,json_encode($arr));
+        $json = json_decode($res,true);
+        $data = json_decode($json['vinfo'], true);
+         $ip = rand_ip();
+        $vi = $data["vl"]["vi"][0];
+        
+        $ui = $vi["ul"]["ui"];
+        $title = $vi["ti"];//视频标题
+        
+        $vfkey = $vi['fvkey'];
+        
+    // $ipp=@file_get_contents("http://sf.huomiao.cc/tx/ip.txt");
+     $ipp = rand_ip();
+
+        $guid = createGUID();
+        
+        $urlhz = '&sdtfrom=v1010&type=mp4&platform=10201&br=117&fmt=10218&sp=0&guid='.$guid;
+         
+        $vipurl = "https://om.tc.qq.com/video.dispatch.tc.qq.com/";
+        $playurl = $vipurl.$data['vl']['vi'][0]['fn']."?name=HUOMIAO&vkey=".$vfkey.$urlhz;
+        
+        $playurl = $playurl."&proto=https://api.huomiao.cc";
+       if ($cookie == "") {
+        $text = "这是免ck得解析不出来,你不填ck怎么解";     
+ 
+        }else{
+        
+       $text = "ck失效啦";     
+   
+        }
+          
+         
+      if ($data['vl']['vi'][0]['fvkey'] == "" || $data['vl']['vi'][0]['fn'] == "") {
+ 
+         
+            $info['code'] = 404;
+            $info['msg'] = $text;
+            echo json_encode($info, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+die;
+        }else{
+        
+            $info['code'] = 200;
+            $info["title"] = $title;
+            $info['url'] = $playurl;
+            $info['vipurl'] = $url;
+            $info['daili'] = $ip;
+            echo json_encode($info, JSON_NUMERIC_CHECK | JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+exit;
+        
+        }
+          
+          }
+              
+
+function rand_ip(){
+$ip_long = array(
+array('607649792', '608174079'), //36.56.0.0-36.63.255.255
+array('975044608', '977272831'), //58.30.0.0-58.63.255.255
+array('999751680', '999784447'), //59.151.0.0-59.151.127.255
+array('1019346944', '1019478015'), //60.194.0.0-60.195.255.255
+array('1038614528', '1039007743'), //61.232.0.0-61.237.255.255
+array('1783627776', '1784676351'), //106.80.0.0-106.95.255.255
+array('1947009024', '1947074559'), //116.13.0.0-116.13.255.255
+array('1987051520', '1988034559'), //118.112.0.0-118.126.255.255
+array('2035023872', '2035154943'), //121.76.0.0-121.77.255.255
+array('2078801920', '2079064063'), //123.232.0.0-123.235.255.255
+array('-1950089216', '-1948778497'), //139.196.0.0-139.215.255.255
+array('-1425539072', '-1425014785'), //171.8.0.0-171.15.255.255
+array('-1236271104', '-1235419137'), //182.80.0.0-182.92.255.255
+array('-770113536', '-768606209'), //210.25.0.0-210.47.255.255
+array('-569376768', '-564133889'), //222.16.0.0-222.95.255.255
+);
+$rand_key = mt_rand(0, 14);
+$huoduan_ip= long2ip(mt_rand($ip_long[$rand_key][0], $ip_long[$rand_key][1]));
+return $huoduan_ip;
+}
+
+     function ccGUID()
+    {
+        $guid = md5(time() . mt_rand(0, 1000));
+        return $guid;
+    }
+
+
+    function getckval($cookie,$key) {
+        if (empty($key)==true) {
+            return $cookie;
+        } else {
+            preg_match("/$key=(.*?);/",$cookie,$vals);
+            if (empty($vals[1])==true) {
+                return;
+            } else {
+                return trim($vals[1]);
+            }
+        }
+    }    
+
+
+
+  function createGUID() 
+    {
+        $b = ""; 
+          for ($c = 1; $c <= 16; $c++) 
+
+        {
+          $b.= dechex(rand(0,8));
+        }
+        return $b;
+    }
+
+    function mkey() 
+    {
+        $b = ""; 
+        for ($c = 1; $c <= 32; $c++) 
+          
+
+        {
+        $b.= dechex(rand(0,16));
+          
+        }
+        return $b;
+    }
+
+
+   function getMillisecond() {
+		list($t1, $t2) = explode(' ', microtime());
+		return (float)sprintf('%.0f',(floatval($t1)+floatval($t2))*1000);
+	}
+	
+	
+ function vip_ipget($url, $header = [], $type = 0, $post_data = '', $redirect = true) {
+        // 初始化cURL
+        $curl = curl_init();
+        // 设置网址
+        curl_setopt($curl, CURLOPT_URL, $url);
+        
+        // 设置请求头
+        if (empty($header) == false) {
+            curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+        }
+        // 设置POST数据
+        if ($type == 1) {
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data);
+        }
+        // 设置重定向
+        if ($redirect == false) {
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        }
+        //允许执行的最长秒数 超时时间
+        curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+            //
+        // 过SSL验证证书
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        // 将头部作为数据流输出
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        // 设置以变量形式存储返回数据
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    // 代理IPhttps://www.teyucloud.com/
+      
+//     if (!file_exists("ip.txt") || filemtime("ip.txt")+45 < time()){
+
+//     $proxy = getSslPage("https://exclusive.proxy.qg.net/replace?key=AA704BA9&num=1&keep_alive=1&area=&isp=&format=json&seq=&distinct=1"); //代理json接口
+//     $proxyIp1 = json_decode($proxy,true)['data']['ips'][0]['server'];
+    
+//     file_put_contents("ip.txt",$proxyIp1);
+// }
+
+    // $json=@file_get_contents("http://sf.huomiao.cc/tx/ip.txt");
+    $json = rand_ip();
+     $vipip = explode(":", $json);
+
+   $proxyIp = $vipip[0];
+   $proxyPort= $vipip[1];
+   $proxyUser = 'AA704BA9';//AuthKey
+    $proxyPassword = '96AB1FD5726E';//AuthPwd
+    
+    curl_setopt($curl, CURLOPT_PROXYPORT, $proxyPort);//代理服务器端口
+    curl_setopt($curl, CURLOPT_PROXYTYPE, 'HTTP');
+    curl_setopt($curl, CURLOPT_PROXY, $proxyIp);//代理服务器地址
+   curl_setopt($curl, CURLOPT_PROXYUSERPWD, $proxyUser . ':' . $proxyPassword);
+
+         // 请求并存储数据
+        $return = curl_exec($curl);
+        // 关闭cURL
+        curl_close($curl);
+        // 返回数据
+        return $return;
+    }
+
+function getSslPage($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+    curl_setopt($ch, CURLOPT_HEADER, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_REFERER, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    $result = curl_exec($ch);
+    curl_close($ch);
+    return $result;
+}
+
+   function mycurl($url, $header = [], $type = 0, $post_data = '', $redirect = true) {
+        // 初始化cURL
+        $curl = curl_init();
+        // 设置网址
+        curl_setopt($curl, CURLOPT_URL, $url);
+        
+        // 设置请求头
+        if (empty($header) == false) {
+            curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
+        }
+        // 设置POST数据
+        if ($type == 1) {
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $post_data);
+        }
+        // 设置重定向
+        if ($redirect == false) {
+            curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
+        }
+        //允许执行的最长秒数 超时时间
+        curl_setopt($curl, CURLOPT_TIMEOUT, 10);
+        // 过SSL验证证书
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        // 将头部作为数据流输出
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        // 设置以变量形式存储返回数据
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        // 请求并存储数据
+        $return = curl_exec($curl);
+        // 关闭cURL
+        curl_close($curl);
+        // 返回数据
+        return $return;
+    }
+    
+
+
+
+
+        
+
+class ckey8
+{
+    public static function parse($url,$vid,$guid,$platform) {
+        $url="https://v.qq.com/x/cover/e3ifll6lu64v9v7.html";
+        $urlc = substr($url,0,48);
+        $time = time();
+        
+        $Ia=array(1332468387, -1641050960, 2136896045, -1629555948, 1399201960, -850809832, -1307058635, 751381793, -1933648423, 1106735553, -203378700, -550927659, 766369351, 1817882502, -1615200142, 1083409063, -104955314, -1780208184, 173944250, 1254993693, 1422337688, -1054667952, -880990486, -2119136777, -1822404972, 1380140484, -1723964626, 412019417, -890799303, -1734066435, 26893779, 420787978, -1337058067, 686432784, 695238595, 811911369, -391724567, -1068702727, -381903814, -648522509, -1266234148, 1959407397, -1644776673, 1152313324);
+    
+        $far=array(1671808611,2089089148,2006576759,2072901243,-233963534,1807603307,1873927791,-984313403,810573872,16974337,1739181671,729634347,-31856642,-681396777,-1410970197,1989864566,-901410870,-2103631998,-918517303,2106063485,-99225606,1508618841,1204391495,-267650064,-1377025619,-731401260,-1560453214,-1343601233,-1665195108,-1527295068,1922491506,-1067738176,-1211992649,-48438787,-1817297517,644500518,911895606,1061256767,-150800905,-867204148,878471220,-1510714971,-449523227,-251069967,1905517169,-663508008,827548209,356461077,67897348,-950889017,593839651,-1017209405,405286936,-1767819370,84871685,-1699401830,118033927,305538066,-2137318528,-499261470,-349778453,661212711,-1295155278,1973414517,152769033,-2086789757,745822252,439235610,455947803,1857215598,1525593178,-1594139744,1391895634,994932283,-698239018,-1278313037,695947817,-482419229,795958831,-2070473852,1408607827,-781665839,0,-315833875,543178784,-65018884,-1312261711,1542305371,1790891114,-884568629,-1093048386,961245753,1256100938,1289001036,1491644504,-817199665,-798245936,-282409489,-1427812438,-82383365,1137018435,1305975373,861234739,-2053893755,1171229253,-116332039,33948674,2139225727,1357946960,1011120188,-1615190625,-1461498968,1374921297,-1543610973,1086357568,-1886780017,-1834139758,-1648615011,944271416,-184225291,-1126210628,-1228834890,-629821478,560153121,271589392,-15014401,-217121293,-764559406,-850624051,202643468,322250259,-332413972,1608629855,-1750977129,1154254916,389623319,-1000893500,-1477290585,2122513534,1028094525,1689045092,1575467613,422261273,1939203699,1621147744,-2120738431,1339137615,-595614756,577127458,712922154,-1867826288,-2004677752,1187679302,-299251730,-1194103880,339486740,-562452514,1591917662,186455563,-612979237,-532948000,844522546,978220090,169743370,1239126601,101321734,611076132,1558493276,-1034051646,-747717165,-1393605716,1655096418,-1851246191,-1784401515,-466103324,2039214713,-416098841,-935097400,928607799,1840765549,-1920204403,-714821163,1322425422,-1444918871,1823791212,1459268694,-200805388,-366620694,1706019429,2056189050,-1360443474,135794696,-1160417350,2022240376,628050469,779246638,472135708,-1494132826,-1261997132,-967731258,-400307224,-579034659,1956440180,522272287,1272813131,-1109630531,-1954148981,-1970991222,1888542832,1044544574,-1245417035,1722469478,1222152264,50660867,-167643146,236067854,1638122081,895445557,1475980887,-1177523783,-2037311610,-1051158079,489110045,-1632032866,-516367903,-132912136,-1733088360,288563729,1773916777,-646927911,-1903622258,-1800981612,-1682559589,505560094,-2020469369,-383727127,-834041906,1442818645,678973480,-545610273,-1936784500,-1577559647,-1988097655,219617805,-1076206145,-432941082,1120306242,1756942440,1103331905,-1716508263,762796589,252780047,-1328841808,1425844308,-1143575109,372911126);
+            
+        $dar=array(-966564955,-126059388,-294160487,-159679603,-855539,-697603139,-563122255,-1849309868,1613770832,33620227,-832084055,1445669757,-402719207,-1244145822,1303096294,-327780710,-1882535355,528646813,-1983264448,-92439161,-268764651,-1302767125,-1907931191,-68095989,1101901292,-1277897625,1604494077,1169141738,597466303,1403299063,-462261610,-1681866661,1974974402,-503448292,1033081774,1277568618,1815492186,2118074177,-168298750,-2083730353,1748251740,1369810420,-773462732,-101584632,-495881837,-1411852173,1647391059,706024767,134480908,-1782069422,1176707941,-1648114850,806885416,932615841,168101135,798661301,235341577,605164086,461406363,-538779075,-840176858,1311188841,2142417613,-361400929,302582043,495158174,1479289972,874125870,907746093,-596742478,-1269146898,1537253627,-1538108682,1983593293,-1210657183,2108928974,1378429307,-572267714,1580150641,327451799,-1504488459,-1177431704,0,-1041371860,1075847264,-469959649,2041688520,-1235526675,-731223362,-1916023994,1740553945,1916352843,-1807070498,-1739830060,-1336387352,-2049978550,-1143943061,-974131414,1336584933,-302253290,-2042412091,-1706209833,1714631509,293963156,-1975171633,-369493744,67240454,-25198719,-1605349136,2017213508,631218106,1269344483,-1571728909,1571005438,-2143272768,93294474,1066570413,563977660,1882732616,-235539196,1673313503,2008463041,-1344611723,1109467491,537923632,-436207846,-34344178,-1076702611,-2117218996,403442708,638784309,-1007883217,-1101045791,899127202,-2008791860,773265209,-1815821225,1437050866,-58818942,2050833735,-932944724,-1168286233,840505643,-428641387,-1067425632,427917720,-1638969391,-1545806721,1143087718,1412049534,999329963,193497219,-1941551414,-940642775,1807268051,672404540,-1478566279,-1134666014,369822493,-1378100362,-606019525,1681011286,1949973070,336202270,-1840690725,201721354,1210328172,-1201906460,-1614626211,-1110191250,1135389935,-1000185178,965841320,831886756,-739974089,-226920053,-706222286,-1949775805,1849112409,-630362697,26054028,-1311386268,-1672589614,1235855840,-663982924,-1403627782,-202050553,-806688219,-899324497,-193299826,1202630377,268961816,1874508501,-260540280,1243948399,1546530418,941366308,1470539505,1941222599,-1748580783,-873928669,-1579295364,-395021156,1042226977,-1773450275,1639824860,227249030,260737669,-529502064,2084453954,1907733956,-865704278,-1874310952,100860677,-134810111,470683154,-1033805405,1781871967,-1370007559,1773779408,394692241,-1715355304,974986535,664706745,-639508168,-336005101,731420851,571543859,-764843589,-1445340816,126783113,865375399,765172662,1008606754,361203602,-907417312,-2016489911,-1437248001,1344809080,-1512054918,59542671,1503764984,160008576,437062935,1707065306,-672733647,-2076032314,-798463816,-2109652541,697932208,1512910199,504303377,2075177163,-1470868228,1841019862,739644986);
+            
+        $ear=array(-1513725085,-2064089988,-1712425097,-1913226373,234877682,-1110021269,-1310822545,1418839493,1348481072,50462977,-1446090905,2102799147,434634494,1656084439,-431117397,-1695779210,1167051466,-1658879358,1082771913,-2013627011,368048890,-340633255,-913422521,201060592,-331240019,1739838676,-44064094,-364531793,-1088185188,-145513308,-1763413390,1536934080,-1032472649,484572669,-1371696237,1783375398,1517041206,1098792767,49674231,1334037708,1550332980,-195975771,886171109,150598129,-1813876367,1940642008,1398944049,1059722517,201851908,1385547719,1699095331,1587397571,674240536,-1590192490,252314885,-1255171430,151914247,908333586,-1692696448,1038082786,651029483,1766729511,-847269198,-1612024459,454166793,-1642232957,1951935532,775166490,758520603,-1294176658,-290170278,-77881184,-157003182,1299594043,1639438038,-830622797,2068982057,1054729187,1901997871,-1760328572,-173649069,1757008337,0,750906861,1614815264,535035132,-931548751,-306816165,-1093375382,1183697867,-647512386,1265776953,-560706998,-728216500,-391096232,1250283471,1807470800,717615087,-447763798,384695291,-981056701,-677753523,1432761139,-1810791035,-813021883,283769337,100925954,-2114027649,-257929136,1148730428,-1171939425,-481580888,-207466159,-27417693,-1065336768,-1979347057,-1388342638,-1138647651,1215313976,82966005,-547111748,-1049119050,1974459098,1665278241,807407632,451280895,251524083,1841287890,1283575245,337120268,891687699,801369324,-507617441,-1573546089,-863484860,959321879,1469301956,-229267545,-2097381762,1199193405,-1396153244,-407216803,724703513,-1780059277,-1598005152,-1743158911,-778154161,2141445340,1715741218,2119445034,-1422159728,-2096396152,-896776634,700968686,-747915080,1009259540,2041044702,-490971554,487983883,1991105499,1004265696,1449407026,1316239930,504629770,-611169975,168560134,1816667172,-457679780,1570751170,1857934291,-280777556,-1497079198,-1472622191,-1540254315,936633572,-1947043463,852879335,1133234376,1500395319,-1210421907,-1946055283,1689376213,-761508274,-532043351,-1260884884,-89369002,133428468,634383082,-1345690267,-1896580486,-381178194,403703816,-714097990,-1997506440,1867130149,1918643758,607656988,-245913946,-948718412,1368901318,600565992,2090982877,-1662487436,557719327,-577352885,-597574211,-2045932661,-2062579062,-1864339344,1115438654,-999180875,-1429445018,-661632952,84280067,33027830,303828494,-1547542175,1600795957,-106014889,-798377543,-1860729210,1486471617,658119965,-1188585826,953803233,334231800,-1288988520,857870609,-1143838359,1890179545,-1995993458,-1489791852,-1238525029,574365214,-1844082809,550103529,1233637070,-5614251,2018519080,2057691103,-1895592820,-128343647,-2146858615,387583245,-630865985,836232934,-964410814,-1194301336,-1014873791,-1339450983,2002398509,287182607,-881086288,-56077228,-697451589,975967766);
+            
+        $gar=array(1667474886,2088535288,2004326894,2071694838,-219017729,1802223062,1869591006,-976923503,808472672,16843522,1734846926,724270422,-16901657,-673750347,-1414797747,1987484396,-892713585,-2105369313,-909557623,2105378810,-84273681,1499065266,1195886990,-252703749,-1381110719,-724277325,-1566376609,-1347425723,-1667449053,-1532692653,1920112356,-1061135461,-1212693899,-33743647,-1819038147,640051788,909531756,1061110142,-134806795,-859025533,875846760,-1515850671,-437963567,-235861767,1903268834,-656903253,825316194,353713962,67374088,-943238507,589522246,-1010606435,404236336,-1768513225,84217610,-1701137105,117901582,303183396,-2139055333,-488489505,-336910643,656894286,-1296904833,1970642922,151591698,-2088526307,741110872,437923380,454765878,1852748508,1515908788,-1600062629,1381168804,993742198,-690593353,-1280061827,690584402,-471646499,791638366,-2071685357,1398011302,-774805319,0,-303223615,538992704,-50585629,-1313748871,1532751286,1785380564,-875870579,-1094788761,960056178,1246420628,1280103576,1482221744,-808498555,-791647301,-269538619,-1431640753,-67430675,1128514950,1296947098,859002214,-2054843375,1162203018,-101117719,33687044,2139062782,1347481760,1010582648,-1616922075,-1465326773,1364325282,-1549533603,1077985408,-1886418427,-1835881153,-1650607071,943212656,-168491791,-1128472733,-1229536905,-623217233,555836226,269496352,-58651,-202174723,-757961281,-842183551,202118168,320025894,-320065597,1600119230,-1751670219,1145359496,387397934,-993765485,-1482165675,2122220284,1027426170,1684319432,1566435258,421079858,1936954854,1616945344,-2122213351,1330631070,-589529181,572679748,707427924,-1869567173,-2004319477,1179044492,-286381625,-1195846805,336870440,-555845209,1583276732,185277718,-606374227,-522175525,842159716,976899700,168435220,1229577106,101059084,606366792,1549591736,-1027449441,-741118275,-1397952701,1650632388,-1852725191,-1785355215,-454805549,2038008818,-404278571,-926399605,926374254,1835907034,-1920103423,-707435343,1313788572,-1448484791,1819063512,1448540844,-185333773,-353753649,1701162954,2054852340,-1364268729,134748176,-1162160785,2021165296,623210314,774795868,471606328,-1499008681,-1263220877,-960081513,-387439669,-572687199,1953799400,522133822,1263263126,-1111630751,-1953790451,-1970633457,1886425312,1044267644,-1246378895,1718004428,1212733584,50529542,-151649801,235803164,1633788866,892690282,1465383342,-1179004823,-2038001385,-1044293479,488449850,-1633765081,-505333543,-117959701,-1734823125,286339874,1768537042,-640061271,-1903261433,-1802197197,-1684294099,505291324,-2021158379,-370597687,-825341561,1431699370,673740880,-539002203,-1936945405,-1583220647,-1987477495,218961690,-1077945755,-421121577,1111672452,1751693520,1094828930,-1717981143,757954394,252645662,-1330590853,1414855848,-1145317779,370555436);
+            
+        $har=array(99,124,119,123,242,107,111,197,48,1,103,43,254,215,171,118,202,130,201,125,250,89,71,240,173,212,162,175,156,164,114,192,183,253,147,38,54,63,247,204,52,165,229,241,113,216,49,21,4,199,35,195,24,150,5,154,7,18,128,226,235,39,178,117,9,131,44,26,27,110,90,160,82,59,214,179,41,227,47,132,83,209,0,237,32,252,177,91,106,203,190,57,74,76,88,207,208,239,170,251,67,77,51,133,69,249,2,127,80,60,159,168,81,163,64,143,146,157,56,245,188,182,218,33,16,255,243,210,205,12,19,236,95,151,68,23,196,167,126,61,100,93,25,115,96,129,79,220,34,42,144,136,70,238,184,20,222,94,11,219,224,50,58,10,73,6,36,92,194,211,172,98,145,149,228,121,231,200,55,109,141,213,78,169,108,86,244,234,101,122,174,8,186,120,37,46,28,166,180,198,232,221,116,31,75,189,139,138,112,62,181,102,72,3,246,14,97,53,87,185,134,193,29,158,225,248,152,17,105,217,142,148,155,30,135,233,206,85,40,223,140,161,137,13,191,230,66,104,65,153,45,15,176,84,187,22);
+            
+        $ca = array(22039283, 1457920463, 776125350, -1941999367);
+
+        $soienfu = "|$vid|$time|mg3c3b04ba|3.5.57|$guid|$platform|$urlc|mozilla/5.0 (windows nt 10.0; wow64) applewebkit||Mozilla|Netscape|Win32|00|";
+        $ac = 0;
+        for ($i = 0; $i < strlen($soienfu); $i++)
+        {
+            $char = ord($soienfu[$i]);
+            $ac = ($ac << 5) - $ac + $char;
+            $ac&= $ac;
+        }
+        
+        $soienfu = "|$ac$soienfu";
+      
+        $longs = self::charsToLongs(array_values(unpack("C*",$soienfu)));    
+        $h = strlen($soienfu);
+        
+        $e = ($c = ($c=16) - $h % $c) << 24 | $c << 16 | $c << 8 | $c; 
+        $f2=array();        
+        
+        for ($g = 0; $g < $c; $g+= 4)
+        {
+            $f2[]=$e;
+        }
+        $longs[self::_rshift($h , 2)]&= 4294967295 << 32 - 8 * ($h % 4);     
+        
+        for ($e = 0; $e < $c; $e++)
+        {
+            $longs[self::_rshift($h + $e , 2)]|= (self::_rshift($f2[self::_rshift($e , 2)] , 24 - $e % 4 * 8 & 255)) << 24 - ($h + $e) % 4 * 8;
+        }
+        
+        for ($i = 0; $i < sizeof($longs); $i+= 4)
+        {                        
+            for ($e = 0; $e < 4; $e++)
+            {
+                $longs[$i + $e]^= $ca[$e];        
+            }
+                            
+            $j = $longs[$i] ^ $Ia[0];     
+            $k = $longs[$i + 1] ^ $Ia[1];     
+            $l = $longs[$i + 2] ^ $Ia[2]; 
+            $m = $longs[$i + 3] ^ $Ia[3]; 
+            
+            $n = 4; 
+                            
+            for ($o = 1; $o < 10; $o++) 
+            {
+                $q = $dar[self::_rshift($j , 24)] ^ $ear[self::_rshift($k , 16) & 255] ^ $far[self::_rshift($l , 8) & 255] ^ $gar[255 & $m] ^ $Ia[$n++];
+                $s = $dar[self::_rshift($k , 24)] ^ $ear[self::_rshift($l , 16) & 255] ^ $far[self::_rshift($m , 8) & 255] ^ $gar[255 & $j] ^ $Ia[$n++];
+                $t = $dar[self::_rshift($l , 24)] ^ $ear[self::_rshift($m , 16) & 255] ^ $far[self::_rshift($j , 8) & 255] ^ $gar[255 & $k] ^ $Ia[$n++];
+                $m = $dar[self::_rshift($m , 24)] ^ $ear[self::_rshift($j , 16) & 255] ^ $far[self::_rshift($k , 8) & 255] ^ $gar[255 & $l] ^ $Ia[$n++];
+                $j = $q;
+                $k = $s;
+                $l = $t;
+            }
+            
+            $q = ($har[self::_rshift($j , 24)] << 24 | $har[self::_rshift($k , 16) & 255] << 16 | $har[self::_rshift($l , 8) & 255] << 8 | $har[255 & $m]) ^ $Ia[$n++];
+            $s = ($har[self::_rshift($k , 24)] << 24 | $har[self::_rshift($l , 16) & 255] << 16 | $har[self::_rshift($m , 8) & 255] << 8 | $har[255 & $j]) ^ $Ia[$n++];
+            $t = ($har[self::_rshift($l , 24)] << 24 | $har[self::_rshift($m , 16) & 255] << 16 | $har[self::_rshift($j , 8) & 255] << 8 | $har[255 & $k]) ^ $Ia[$n++];
+            $m = ($har[self::_rshift($m , 24)] << 24 | $har[self::_rshift($j , 16) & 255] << 16 | $har[self::_rshift($k , 8) & 255] << 8 | $har[255 & $l]) ^ $Ia[$n++];
+                        
+            $longs[$i] = $q;
+            $longs[$i + 1] = $s;
+            $longs[$i + 2] = $t;
+            $longs[$i + 3] = $m;
+        
+            $ca = array_slice($longs,$i, 4);
+        }
+        $ckey = "";
+        foreach ($longs as $g)            
+            foreach (array_reverse(array_values(unpack("C*",pack("L",$g)))) as $byte) 
+                $ckey.=sprintf("%02x",$byte);    
+        
+        return $ckey;
+    }
+    public static function charsToLongs($chars)
+    {
+        $tlength = ceil(count($chars) / 4);
+        $temp    = array();
+        for ($_loc1 = 0; $_loc1 < $tlength; $_loc1++) 
+        {
+            $_loc2 = $_loc1 * 4;
+            $temp[$_loc1] = ($chars[$_loc2] << 24) + ($chars[$_loc2 + 1] << 16) + ($chars[$_loc2 + 2] << 8) + $chars[$_loc2 + 3];
+        }
+        return $temp;
+    }
+    public static function _rshift($integer, $n)
+    {
+        if (0xffffffff < $integer || -0xffffffff > $integer)
+            $integer = fmod($integer, 0xffffffff + 1);        
+        if (0x7fffffff < $integer)
+            $integer -= 0xffffffff + 1.0;
+        else if (-0x80000000 > $integer)
+            $integer += 0xffffffff + 1.0;
+        if (0 > $integer)
+        {
+            $integer &= 0x7fffffff;      
+            $integer >>= $n;               
+            $integer |= 1 << (31 - $n); 
+        }
+        else    $integer >>= $n;                   
+        
+        return $integer;
+    }
+}

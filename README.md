@@ -3,7 +3,7 @@
 > GFSF 算法学习与实现集合：数据结构与算法、刷题记录、常用算法模板与工具。
 
 - 仓库地址：[github.com/ssmhdssmhd/GFSF](https://github.com/ssmhdssmhd/GFSF)
-- 当前版本：`v0.0.1`（2026-10-05）
+- 当前版本：`v0.0.2`（2026-10-05）
 - Logo 来源：[MXLOGO · 射手沫蝴蝶 Logo 资产库](https://github.com/ssmhdssmhd/MXLOGO)
 
 ![GFSF Logo](https://cdn.jsdelivr.net/gh/ssmhdssmhd/MXLOGO@main/web/web-logo.svg)
@@ -42,6 +42,7 @@ git clone https://github.com/ssmhdssmhd/GFSF.git
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v0.0.2 | 2026-10-05 | 新增后台管理（gfsfadmin）：登录、平台概览、脚本运行控制台、Cookie 管理；算法脚本真实测试（见 TEST-REPORT.md） |
 | v0.0.1 | 2026-10-05 | 仓库初始化：README、版本信息、基础文件（.gitignore / VERSION） |
 
 ---
