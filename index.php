@@ -121,6 +121,17 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
       </div>
       <pre id="up-output" class="output">点击「检查更新」查看远程版本与更新内容…</pre>
     </section>
+
+    <!-- 手动升级 -->
+    <section class="panel">
+      <h2>手动升级 <small>上传 ZIP 压缩包覆盖升级（自动备份，保留 cookies/、backups/ 与本地 config.php）</small></h2>
+      <div class="row">
+        <input id="up-file" type="file" accept=".zip,application/zip" class="file-input">
+        <button id="up-upload" class="btn btn-primary">上传并升级</button>
+      </div>
+      <div id="up-file-info" class="muted">请选择升级压缩包（zip，建议包含 index.php / api.php / config.php / uploads_sf 等）</div>
+      <pre id="up-upload-output" class="output">尚未上传…</pre>
+    </section>
   </main>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -481,6 +492,33 @@ $('up-run').onclick = async function () {
     $('up-output').textContent += '\n\n更新完成，请刷新页面查看新版本（如代码有变化页面可能需手动刷新）。';
   }
   $('up-run').disabled = false;
+};
+
+/* ---------- 手动升级（上传 ZIP 覆盖升级） ---------- */
+$('up-file').onchange = function () {
+  const f = this.files && this.files[0];
+  $('up-file-info').textContent = f
+    ? '已选择：' + f.name + '（' + (f.size / 1024 / 1024).toFixed(2) + ' MB）'
+    : '请选择升级压缩包（zip）';
+};
+$('up-upload').onclick = async function () {
+  const f = $('up-file').files && $('up-file').files[0];
+  if (!f) { alert('请先选择 .zip 升级压缩包'); return; }
+  if (!/\.zip$/i.test(f.name)) { alert('仅支持 .zip 压缩包'); return; }
+  if (!confirm('确认上传并覆盖升级？\n（自动备份当前代码，保留 cookies/、backups/ 与本地 config.php）')) return;
+  const fd = new FormData();
+  fd.append('file', f);
+  $('up-upload').disabled = true;
+  $('up-upload-output').textContent = '正在上传并升级（' + f.name + '），请稍候…';
+  const j = await api('api.php?action=update_upload', { method: 'POST', body: fd });
+  if (!j) return;
+  $('up-upload-output').textContent = j.msg + (j.data && j.data.backup ? '\n备份目录: ' + j.data.backup : '');
+  if (j.code === 200) {
+    $('up-upload-output').textContent += '\n\n升级完成，请刷新页面查看新版本。';
+    $('up-file').value = '';
+    $('up-file-info').textContent = '请选择升级压缩包（zip）';
+  }
+  $('up-upload').disabled = false;
 };
 </script>
 </body>

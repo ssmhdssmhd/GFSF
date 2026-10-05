@@ -504,6 +504,68 @@ switch ($action) {
             'backup' => 'backups/' . basename($bkDir),
         ));
         break;
+
+    /* ---------- 手动升级：上传 ZIP 压缩包覆盖升级 ---------- */
+    case 'update_upload':
+        if (empty($_FILES['file']) || !is_uploaded_file($_FILES['file']['tmp_name'])) {
+            $out = array('code' => 400, 'msg' => '未收到上传文件（请选择 .zip 压缩包）');
+            break;
+        }
+        $f = $_FILES['file'];
+        if ($f['error'] !== UPLOAD_ERR_OK) {
+            $out = array('code' => 400, 'msg' => '上传失败：错误码 ' . $f['error']);
+            break;
+        }
+        if ($f['size'] < 100 || $f['size'] > 209715200) { // 100B ~ 200MB
+            $out = array('code' => 400, 'msg' => '压缩包大小不合法（100B ~ 200MB）');
+            break;
+        }
+        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+        if ($ext !== 'zip') {
+            $out = array('code' => 400, 'msg' => '仅支持 .zip 压缩包');
+            break;
+        }
+
+        // 复制上传文件到临时目录并解压（避免占用上传临时文件）
+        $tmp = sys_get_temp_dir() . '/gfsf_manual_' . time() . '_' . mt_rand(1000, 9999);
+        @mkdir($tmp, 0777, true);
+        $zipFile = $tmp . '/upgrade.zip';
+        if (!move_uploaded_file($f['tmp_name'], $zipFile)) {
+            deleteDir($tmp);
+            $out = array('code' => 500, 'msg' => '保存上传文件失败（请检查目录权限）');
+            break;
+        }
+        $extracted = unzipArchive($zipFile, $tmp);
+        if ($extracted === null || !is_dir($extracted)) {
+            deleteDir($tmp);
+            $out = array('code' => 500, 'msg' => '解压失败：请确认是有效的 zip 压缩包（需 PHP zip 扩展或系统 unzip 命令）');
+            break;
+        }
+
+        // 安全检查：压缩包内不能包含敏感/危险文件（拒绝可被脚本执行的非常规文件）
+        $forbidden = array('composer.lock', '.env', 'config.local.php');
+        foreach ($forbidden as $fb) {
+            if (file_exists($extracted . '/' . $fb)) {
+                deleteDir($tmp);
+                $out = array('code' => 400, 'msg' => '压缩包包含受限文件 ' . $fb . '，已取消升级');
+                break;
+            }
+        }
+
+        // 备份本地（排除 cookies/.uploads/.git/backups）
+        $bkDir = __DIR__ . '/backups/manual_' . date('Ymd_His');
+        @mkdir($bkDir, 0777, true);
+        recursiveCopy(__DIR__, $bkDir, array('cookies', '.uploads', '.git', 'backups'));
+
+        // 覆盖本地（保留：cookies/.uploads/.git/backups/config.php）
+        recursiveCopy($extracted, __DIR__, array('cookies', '.uploads', '.git', 'backups', 'config.php'));
+
+        // 清理临时文件
+        deleteDir($tmp);
+        $out = array('code' => 200, 'msg' => '手动升级完成：已解压并覆盖本地代码（保留 cookies/、backups/ 与本地 config.php）', 'data' => array(
+            'backup' => 'backups/' . basename($bkDir),
+        ));
+        break;
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

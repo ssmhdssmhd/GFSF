@@ -89,6 +89,11 @@ a { color: var(--primary); }
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); font-size: 14px;
 }
+.file-input {
+  flex: 1; min-width: 220px; padding: 8px 12px;
+  background: var(--panel-2); border: 1px dashed var(--border); border-radius: 8px;
+  color: var(--text); font-size: 13px; cursor: pointer;
+}
 .select:focus, .input:focus, .textarea:focus { outline: none; border-color: var(--primary); }
 .grow { flex: 1; min-width: 220px; }
 .textarea {
