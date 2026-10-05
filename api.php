@@ -221,7 +221,55 @@ switch ($action) {
     /* ---------- 扫码登录：获取二维码 ---------- */
     case 'qr_login':
         $platform = isset($_POST['platform']) ? $_POST['platform'] : '';
-        if ($platform === 'bl') {
+        if ($platform === 'tx') {
+            /* 腾讯视频：QQ 扫码登录（官方 ptlogin2 流程） */
+            $jar = tempnam(sys_get_temp_dir(), 'gfsf_tx_' . session_id());
+            // 1) 访问登录页获取 login_sig
+            $ch = curl_init('https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid=716027021&s_url=' . urlencode('https://v.qq.com/'));
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $jar);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+            curl_exec($ch);
+            curl_close($ch);
+            // 2) 获取二维码图片，捕获 qrsig 与 login_sig
+            $ms = (int)(microtime(true) * 1000);
+            $api = 'https://ssl.ptlogin2.qq.com/ptqrshow?appid=716027021&e=2&l=M&s=3&d=72&v=4&t=' . $ms . '&da=1&pt_3rd_aid=0';
+            $ch = curl_init($api);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $jar);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $jar);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_REFERER, 'https://xui.ptlogin2.qq.com/');
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+            $qrImg = curl_exec($ch);
+            curl_close($ch);
+            $qrsig = ''; $loginSig = '';
+            if (is_file($jar)) {
+                foreach (file($jar) as $line) {
+                    $line = trim($line);
+                    if (preg_match('/\tqrsig\t(.+)$/', $line, $m))        $qrsig = $m[1];
+                    if (preg_match('/\tpt_login_sig\t(.+)$/', $line, $m)) $loginSig = $m[1];
+                }
+            }
+            if ($qrImg === false || $qrsig === '') {
+                @unlink($jar);
+                $out = array('code' => 500, 'msg' => '生成二维码失败（QQ 接口受限，可能是服务器 IP 被限制）');
+                break;
+            }
+            $_SESSION['tx_jar']      = $jar;
+            $_SESSION['tx_qrsig']    = $qrsig;
+            $_SESSION['tx_login_sig']= $loginSig;
+            $out = array('code' => 200, 'msg' => 'ok', 'data' => array(
+                'key' => $qrsig,
+                'url' => $api,
+                'img' => 'data:image/png;base64,' . base64_encode($qrImg),
+            ));
+        } elseif ($platform === 'bl') {
             $api = 'https://passport.bilibili.com/x/passport-login/web/qrcode/generate';
             $res = adminCurl($api);
             $j = json_decode($res, true);
@@ -239,6 +287,10 @@ switch ($action) {
             } else {
                 $out = array('code' => 500, 'msg' => '生成二维码失败：' . (isset($j['msg']) ? $j['msg'] : '接口异常'));
             }
+        } elseif ($platform === 'iqy' || $platform === 'youku') {
+            /* 爱奇艺 / 优酷：官方扫码接口已升级为加密 SDK，无法服务端自动生成二维码
+             * 引导使用云端获取或 Cookie 管理手动保存 */
+            $out = array('code' => 400, 'msg' => '该平台官方扫码接口已加密，暂不支持自动扫码登录；请使用「云端获取」拉取 Cookie，或在浏览器登录后复制 Cookie 到「Cookie 管理」保存');
         } else {
             $out = array('code' => 400, 'msg' => '该平台暂不支持扫码登录');
         }
@@ -253,7 +305,65 @@ switch ($action) {
             break;
         }
         $cookies = '';
-        if ($platform === 'bl') {
+        if ($platform === 'tx') {
+            /* 腾讯视频：QQ 扫码轮询（ptqrlogin） */
+            $jar = isset($_SESSION['tx_jar']) ? $_SESSION['tx_jar'] : '';
+            if (!is_file($jar) || $_SESSION['tx_qrsig'] !== $key) {
+                $out = array('code' => 400, 'msg' => '二维码会话已失效，请重新获取');
+                break;
+            }
+            $loginSig  = isset($_SESSION['tx_login_sig']) ? $_SESSION['tx_login_sig'] : '';
+            $ptqrtoken = qqHash33($key);
+            $ts  = time();
+            $ms  = (int)(microtime(true) * 1000);
+            $api = 'https://ssl.ptlogin2.qq.com/ptqrlogin?u1=' . urlencode('https://v.qq.com/')
+                 . '&ptqrtoken=' . $ptqrtoken
+                 . '&ptredirect=0&h=1&t=1&g=1&from_ui=1&ptlang=2052&action=0-0-' . $ts
+                 . '&js_ver=22070110&js_type=1&login_sig=' . urlencode($loginSig)
+                 . '&pt_uistyle=40&aid=716027021&da=1&has_onekey=1&_=' . $ms;
+            $ch = curl_init($api);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $jar);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $jar);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_REFERER, 'https://xui.ptlogin2.qq.com/');
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+            $res = curl_exec($ch);
+            curl_close($ch);
+            // 响应形如 ptuiCB('0','0','{jump}','0','登录成功!','qq号')
+            if (preg_match("/ptuiCB\\('([^']*)','[^']*','([^']*)','[^']*','([^']*)'/", (string)$res, $m)) {
+                $code = $m[1]; $jump = $m[2]; $msg = $m[3];
+                if ($code === '0' && $jump !== '') {
+                    $cookies = captureQqCookies($jump, $jar);
+                    if ($cookies === '' || $cookies === ';') {
+                        $out = array('code' => 500, 'msg' => '登录成功但未捕获到 Cookie（' . $msg . '）', 'data' => array('status' => 0));
+                        break;
+                    }
+                    $ckPath = SCRIPTS_ROOT . '/tx/qqck.txt';
+                    if (file_put_contents($ckPath, $cookies) !== false) {
+                        @unlink($jar);
+                        unset($_SESSION['tx_jar'], $_SESSION['tx_qrsig'], $_SESSION['tx_login_sig']);
+                        $out = array('code' => 200, 'msg' => '登录成功，Cookie 已保存', 'data' => array('status' => 0, 'ck' => $cookies, 'size' => strlen($cookies)));
+                    } else {
+                        $out = array('code' => 500, 'msg' => '写入 Cookie 失败');
+                    }
+                } elseif ($code === '65') {
+                    $out = array('code' => 200, 'msg' => '等待扫码…', 'data' => array('status' => 65));
+                } elseif ($code === '66') {
+                    $out = array('code' => 200, 'msg' => '已扫码，请在手机上确认登录', 'data' => array('status' => 66));
+                } elseif ($code === '67') {
+                    @unlink($jar);
+                    unset($_SESSION['tx_jar'], $_SESSION['tx_qrsig'], $_SESSION['tx_login_sig']);
+                    $out = array('code' => 200, 'msg' => '二维码已过期，请重新获取', 'data' => array('status' => 67, 'expired' => true));
+                } else {
+                    $out = array('code' => 200, 'msg' => '登录未成功：' . $msg, 'data' => array('status' => $code));
+                }
+            } else {
+                $out = array('code' => 500, 'msg' => '轮询接口返回异常', 'data' => array('output' => mb_substr((string)$res, 0, 200)));
+            }
+        } elseif ($platform === 'bl') {
             $api = 'https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key=' . urlencode($key);
             list($header, $body) = adminCurlRaw($api);
             $j = json_decode($body, true);
@@ -423,6 +533,44 @@ function adminCurlRaw($url) {
     $hs  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     curl_close($ch);
     return array(substr($raw, 0, $hs), substr($raw, $hs));
+}
+
+/** QQ 扫码 hash33（ptqrtoken 计算，与腾讯官方 JS 一致） */
+function qqHash33($t) {
+    $e = 0;
+    $n = strlen($t);
+    for ($i = 0; $i < $n; ++$i) {
+        $shl = ($e << 5) & 0xFFFFFFFF;
+        if ($shl > 0x7FFFFFFF) $shl -= 0x100000000; // 转 32 位有符号
+        $e += $shl + ord($t[$i]);
+    }
+    return 2147483647 & $e;
+}
+
+/** 跟随 QQ 登录跳转链，抓取所有 Set-Cookie（含 v.qq.com 域） */
+function captureQqCookies($jumpUrl, $jar) {
+    $ch = curl_init($jumpUrl);
+    curl_setopt($ch, CURLOPT_COOKIEFILE, $jar);
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $jar);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HEADER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36');
+    $raw = (string)curl_exec($ch);
+    curl_close($ch);
+    $cookies = array();
+    if (preg_match_all('/^Set-Cookie:\s*([^;=]+)=([^;]*)/mi', $raw, $mm)) {
+        foreach ($mm[1] as $i => $k) {
+            $cookies[$k] = $mm[2][$i];
+        }
+    }
+    $str = '';
+    foreach ($cookies as $k => $v) $str .= $k . '=' . $v . ';';
+    return $str;
 }
 
 /** 解压 zip 到目录，返回 zip 内第一层目录（仓库根），失败返回 null */

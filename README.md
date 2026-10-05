@@ -3,7 +3,7 @@
 > GFSF 算法学习与实现集合：各平台视频解析算法脚本 + 后台管理 + Cookie 全程自动化。
 
 - 仓库地址：[github.com/ssmhdssmhd/GFSF](https://github.com/ssmhdssmhd/GFSF)
-- 当前版本：`v0.0.6`（2026-10-05）
+- 当前版本：`v0.0.7`（2026-10-05）
 - Logo 来源：[MXLOGO · 射手沫蝴蝶 Logo 资产库](https://github.com/ssmhdssmhd/MXLOGO)
 
 ![GFSF Logo](https://cdn.jsdelivr.net/gh/ssmhdssmhd/MXLOGO@main/web/web-logo.svg)
@@ -16,7 +16,7 @@
 GFSF/                        ← 部署根目录（站点根 / 宝塔站点 / 虚拟主机均可）
 ├── index.php                # 后台主页（登录后使用：运行控制台 + Cookie 管理 + 扫码登录）
 ├── login.php / logout.php   # 登录 / 退出
-├── api.php                  # 后台 API（platforms / scripts / run / cookie_* / qr_login）
+├── api.php                  # 后台 API（platforms / scripts / run / cookie_* / qr_login / qr_poll / cookie_pull / update_*）
 ├── config.php               # 全局配置（管理员账号、脚本根目录自动探测、平台配置）
 ├── runner.php               # 脚本执行器（CLI 子进程，自动切换脚本目录）
 ├── dsck.php                 # Cookie 自动检查 / 生成 / 同步 调度脚本（可作计划任务）
@@ -54,9 +54,9 @@ php -S 0.0.0.0:8092 -t /workspace
 ## 🖥 后台管理（index.php）
 
 - **平台概览**：各平台脚本数量、Cookie 文件状态与预览
-- **运行控制台**：选择平台/脚本，输入视频地址真实调用解析算法；成功后显示播放区（内嵌播放 / 新窗口打开 / 复制链接），支持自动刷新
+- **运行控制台**：选择平台/脚本，输入视频地址真实调用解析算法；解析后先显示结果，点击「内嵌播放」才开始播放（支持新窗口打开 / 复制链接）
 - **Cookie 生成**：真实调用生成脚本（blgetck.php / mggetck.php）自动生成并保存 Cookie，自动识别失效 Cookie
-- **扫码登录**：B 站 / 芒果TV 官方接口生成二维码，手机扫码登录后自动轮询并保存真实 Cookie
+- **扫码登录**：腾讯视频（QQ 官方 ptlogin2 扫码）、B 站、芒果TV 生成二维码，手机扫码后自动轮询并保存真实 Cookie；爱奇艺、优酷因官方接口已加密，引导使用「云端获取」或手动管理 Cookie
 - **Cookie 管理**：读取 / 编辑 / 保存 / 清空各平台 `ck.txt`（腾讯为 `qqck.txt`）
 - **云端获取**：一键从 GitHub 仓库 `cookies/` 拉取最新 Cookie 到本地并自动校验
 - **在线更新**：检查 GitHub 最新版本，一键拉取最新代码覆盖本地（自动备份，保留 cookies/、backups/ 与本地 config.php）
@@ -95,6 +95,7 @@ php dsck.php --action pull --platform bl
 
 | 版本 | 日期 | 更新内容 |
 |---|---|---|
+| v0.0.7 | 2026-10-05 | 扫码登录扩展至所有平台：新增腾讯视频（QQ 官方 ptlogin2 扫码，hash33 计算 ptqrtoken，登录后抓取 Cookie 保存到 qqck.txt），爱奇艺/优酷因官方接口加密引导使用云端获取或手动管理 Cookie；运行控制台优化：解析后先显示结果，点击「内嵌播放」才开始播放 |
 | v0.0.6 | 2026-10-05 | 后台新增云端获取（从 GitHub cookies/ 拉取 Cookie 并校验）与在线更新（检查远程版本、一键拉取最新代码覆盖本地，自动备份并保留 cookies/ 与本地 config.php） |
 | v0.0.5 | 2026-10-05 | 整理目录结构：后台文件移至仓库根目录，任意 PHP 环境直接部署（脚本根目录自动探测，无需改代码）；移除 gfsfadmin 子目录 |
 | v0.0.4 | 2026-10-05 | 新增 Cookie 全程自动化：dsck.php 调度脚本（检查/自动生成/拉取 GitHub cookie/导出）、GitHub Actions 定时检查并提交 cookies/ 目录、可选项访问令牌 |

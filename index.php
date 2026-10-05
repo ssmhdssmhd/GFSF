@@ -38,7 +38,7 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
 
     <!-- 运行控制台 -->
     <section class="panel">
-      <h2>运行控制台 <small>真实调用算法脚本解析视频</small></h2>
+      <h2>运行控制台 <small>真实调用算法脚本解析视频（先显示解析结果，点击「内嵌播放」才开始播放）</small></h2>
       <div class="row">
         <select id="run-platform" class="select"></select>
         <select id="run-script" class="select grow"></select>
@@ -73,7 +73,7 @@ $loginAt = htmlspecialchars($_SESSION['login_at']);
 
     <!-- 扫码登录 -->
     <section class="panel">
-      <h2>扫码登录 <small>生成真实 Cookie（B站 / 芒果TV）</small></h2>
+      <h2>扫码登录 <small>生成真实 Cookie（腾讯视频 / B站 / 芒果TV，爱奇艺·优酷接口已加密请用云端获取）</small></h2>
       <div class="row">
         <select id="qr-platform" class="select"></select>
         <button id="qr-get" class="btn btn-primary">获取二维码</button>
@@ -244,12 +244,8 @@ function showPlay(output) {
   lastVideoUrl = u;
   $('play-url').textContent = u;
   $('play-zone').classList.remove('hidden');
-  if (/\.mp4(\?|$)/i.test(u)) {
-    $('play-video').src = u;
-    $('play-video').play().catch(() => {});
-  } else {
-    $('play-video').removeAttribute('src');
-  }
+  // 不自动播放：先让用户查看解析结果，点击「▶ 内嵌播放」后才加载并播放
+  $('play-video').removeAttribute('src');
 }
 $('play-btn').onclick = function () {
   if (!lastVideoUrl) return;
@@ -307,32 +303,36 @@ async function loadQrPlatforms() {
   if (!j) return;
   const sel = $('qr-platform');
   sel.innerHTML = '';
-  ['bl', 'mg'].forEach(k => {
-    const p = (j.data || []).find(x => x.key === k);
-    if (p) {
-      const o = document.createElement('option');
-      o.value = k; o.textContent = p.name;
-      sel.appendChild(o);
-    }
+  (j.data || []).forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.key; o.textContent = p.name;
+    sel.appendChild(o);
   });
 }
 async function qrGet() {
   qrStop();
   qrPlatform = $('qr-platform').value;
   $('qr-status').textContent = '正在生成二维码…';
+  $('qr-ck').textContent = '';
   const fd = new FormData();
   fd.append('platform', qrPlatform);
   const j = await api('api.php?action=qr_login', { method: 'POST', body: fd });
   if (!j || j.code !== 200) {
     $('qr-status').textContent = j ? (j.msg || '生成失败') : '请求失败';
+    $('qr-box').innerHTML = '<span class="muted">该平台暂无可用的自动扫码接口</span>';
     return;
   }
   qrKey = j.data.key;
   $('qr-box').innerHTML = '';
-  if (typeof QRCode !== 'undefined') {
+  if (j.data.img) {
+    // 平台直接返回二维码图片（腾讯视频 QQ 扫码）
+    const img = document.createElement('img');
+    img.src = j.data.img; img.width = 180; img.height = 180; img.alt = 'QR';
+    $('qr-box').appendChild(img);
+  } else if (typeof QRCode !== 'undefined' && j.data.url) {
     new QRCode($('qr-box'), { text: j.data.url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
   } else {
-    $('qr-box').innerHTML = '<span class="muted">二维码库未加载，请手动打开：</span><a href="' + j.data.url + '" target="_blank">扫码链接</a>';
+    $('qr-box').innerHTML = '<span class="muted">二维码库未加载，请手动打开：</span><a href="' + (j.data.url || '#') + '" target="_blank">扫码链接</a>';
   }
   $('qr-status').textContent = '二维码已生成，请用手机 App 扫码（60 秒内有效）';
   $('qr-stop').disabled = false;
@@ -352,7 +352,7 @@ async function qrPoll() {
     qrStop();
     await loadPlatforms();
     $('qr-status').textContent = '登录成功，Cookie 已保存到平台文件';
-  } else if (j.data && j.data.status === 86038) {
+  } else if (j.data && (j.data.expired || j.data.status === 86038 || j.data.status === 67)) {
     qrStop();
     $('qr-status').textContent = '二维码已过期，请点击「获取二维码」重新生成';
   }
